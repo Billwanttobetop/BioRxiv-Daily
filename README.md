@@ -1,4 +1,4 @@
 # BioRxiv-Daily
 
 欢迎大家使用
-https://iifo9pfzywyv.space.minimaxi.com/
+https://wm5q3d8gwig2.space.minimaxi.com
