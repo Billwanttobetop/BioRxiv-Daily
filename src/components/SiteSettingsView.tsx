@@ -15,56 +15,56 @@ const settingFields: SettingItem[] = [
     key: 'ai_api_key',
     value: '',
     label: 'AI API Key',
-    description: '鐢ㄤ簬璋冪敤AI鏈嶅姟鐨凙PI瀵嗛挜',
+    description: '用于调用AI服务的API密钥',
     type: 'text'
   },
   {
     key: 'ai_base_url',
     value: '',
     label: 'AI Base URL',
-    description: 'AI鏈嶅姟鐨凚ase URL锛屼緥濡?https://api.openai.com/v1',
+    description: 'AI服务的Base URL，例如 https://api.openai.com/v1',
     type: 'url'
   },
   {
     key: 'copyright',
     value: '',
-    label: '鐗堟潈澹版槑',
-    description: '缃戠珯搴曢儴鏄剧ず鐨勭増鏉冧俊鎭?,
+    label: '版权声明',
+    description: '网站底部显示的版权信息',
     type: 'text'
   },
   {
     key: 'contact_email',
     value: '',
-    label: '鑱旂郴閭',
-    description: '鍏紑鐨勮仈绯婚偖绠卞湴鍧€',
+    label: '联系邮箱',
+    description: '公开的联系邮箱地址',
     type: 'text'
   },
   {
     key: 'contact_phone',
     value: '',
-    label: '鑱旂郴鐢佃瘽',
-    description: '鍏紑鐨勮仈绯荤數璇濆彿鐮?,
+    label: '联系电话',
+    description: '公开的联系电话号码',
     type: 'text'
   },
   {
     key: 'address',
     value: '',
-    label: '鍏徃鍦板潃',
-    description: '鍏徃鎴栫粍缁囩殑鍦板潃淇℃伅',
+    label: '公司地址',
+    description: '公司或组织的地址信息',
     type: 'textarea'
   },
   {
     key: 'social_twitter',
     value: '',
-    label: 'Twitter 閾炬帴',
-    description: 'Twitter 绀句氦濯掍綋涓婚〉閾炬帴',
+    label: 'Twitter 链接',
+    description: 'Twitter 社交媒体主页链接',
     type: 'url'
   },
   {
     key: 'social_github',
     value: '',
-    label: 'GitHub 閾炬帴',
-    description: 'GitHub 缁勭粐鎴栬处鍙烽摼鎺?,
+    label: 'GitHub 链接',
+    description: 'GitHub 组织或账号链接',
     type: 'url'
   }
 ]
