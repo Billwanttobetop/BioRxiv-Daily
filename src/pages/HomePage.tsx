@@ -24,22 +24,44 @@ export function HomePage() {
   const [allTags, setAllTags] = useState<{ name: string; count: number }[]>([])
   const [tagsExpanded, setTagsExpanded] = useState(true)
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  const PAPERS_PER_PAGE = 50
 
   useEffect(() => {
-    loadPapers()
+    loadPapers({ initialLoad: true })
     loadPopularTags()
   }, [])
 
-  async function loadPapers() {
+  async function loadPapers({ initialLoad = false }: { initialLoad?: boolean } = {}) {
+    let pageToLoad: number;
+
+    if (initialLoad) {
+      setLoading(true);
+      pageToLoad = 1;
+    } else {
+      setLoadingMore(true);
+      pageToLoad = page + 1;
+    }
+
     try {
+      const from = (pageToLoad - 1) * PAPERS_PER_PAGE;
+      const to = from + PAPERS_PER_PAGE - 1;
+
       // 获取文献列表
       const { data: papersData, error: papersError } = await supabase
         .from('papers')
         .select('*')
         .order('published_date', { ascending: false })
-        .limit(50)
+        .range(from, to)
 
       if (papersError) throw papersError
+
+      if (!papersData || papersData.length < PAPERS_PER_PAGE) {
+        setHasMore(false)
+      }
 
       // 获取分析数据
       const paperIds = papersData?.map(p => p.id) || []
@@ -89,11 +111,27 @@ export function HomePage() {
         tags: paperTagsMap.get(paper.id) || []
       })) || []
 
-      setPapers(merged)
+      if (initialLoad) {
+        setPapers(merged)
+        setPage(1)
+      } else {
+        setPapers(prevPapers => [...prevPapers, ...merged])
+        setPage(pageToLoad)
+      }
     } catch (error) {
       console.error('Error loading papers:', error)
     } finally {
-      setLoading(false)
+      if (initialLoad) {
+        setLoading(false)
+      } else {
+        setLoadingMore(false)
+      }
+    }
+  }
+
+  async function handleLoadMore() {
+    if (!loadingMore && hasMore) {
+      loadPapers({ initialLoad: false })
     }
   }
 
@@ -155,7 +193,7 @@ export function HomePage() {
       console.log('分析成功:', data)
       
       // 重新加载数据以显示新标签和分析
-      await loadPapers()
+      await loadPapers({ initialLoad: true })
       await loadPopularTags()
     } catch (error: any) {
       console.error('Error analyzing paper:', error)
@@ -191,7 +229,7 @@ export function HomePage() {
       console.log('获取论文成功:', data)
 
       // 重新加载论文列表
-      await loadPapers()
+      await loadPapers({ initialLoad: true })
 
       // 获取新论文的ID列表进行分析
       if (data && data.new_papers && data.new_papers.length > 0) {
@@ -210,7 +248,7 @@ export function HomePage() {
         }
 
         // 重新加载标签和论文
-        await loadPapers()
+        await loadPapers({ initialLoad: true })
         await loadPopularTags()
       }
 
@@ -510,7 +548,26 @@ export function HomePage() {
           })}
         </div>
 
-        {filteredPapers.length === 0 && (
+        {hasMore && !loading && (
+          <div className="flex justify-center mt-8">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="flex items-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>加载中...</span>
+                </>
+              ) : (
+                <span>加载更多</span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {filteredPapers.length === 0 && !loading && (
           <div className="text-center py-12 text-neutral-500">
             没有找到相关文献
           </div>
