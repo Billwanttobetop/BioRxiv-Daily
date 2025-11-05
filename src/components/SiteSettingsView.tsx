@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Save, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -96,8 +96,8 @@ export function SiteSettingsView() {
         setSettings(settingsMap)
       }
     } catch (error) {
-      console.error('获取站点设置失败:', error)
-      setMessage({ type: 'error', text: '获取站点设置失败' })
+      console.error('鑾峰彇绔欑偣璁剧疆澶辫触:', error)
+      setMessage({ type: 'error', text: '鑾峰彇绔欑偣璁剧疆澶辫触' })
     } finally {
       setLoading(false)
     }
@@ -108,7 +108,7 @@ export function SiteSettingsView() {
       setSaving(true)
       setMessage(null)
 
-      // 更新每个设置项
+      // 鏇存柊姣忎釜璁剧疆椤?
       for (const field of settingFields) {
         const { error } = await supabase
           .from('site_settings')
@@ -123,7 +123,7 @@ export function SiteSettingsView() {
 
       setMessage({ type: 'success', text: '设置保存成功' })
       
-      // 3秒后清除消息
+      // 3绉掑悗娓呴櫎娑堟伅
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       console.error('保存设置失败:', error)
@@ -166,7 +166,7 @@ export function SiteSettingsView() {
         </button>
       </div>
 
-      {/* 消息提示 */}
+      {/* 娑堟伅鎻愮ず */}
       {message && (
         <div className={`p-4 rounded-lg ${
           message.type === 'success' 
@@ -177,7 +177,7 @@ export function SiteSettingsView() {
         </div>
       )}
 
-      {/* 设置表单 */}
+      {/* 璁剧疆琛ㄥ崟 */}
       <div className="bg-white rounded-lg border border-neutral-200 p-6">
         <div className="space-y-6">
           {settingFields.map((field) => (
@@ -211,15 +211,13 @@ export function SiteSettingsView() {
 
       {/* 预览区域 */}
       <div className="bg-white rounded-lg border border-neutral-200 p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 mb-4">页脚预览</h3>
+        <h3 className="text-lg font-semibold text-neutral-800 mb-4">页面预览</h3>
         <div className="bg-neutral-800 text-neutral-300 p-8 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* 关于我们 */}
             <div>
               <h4 className="text-white text-base font-semibold mb-3">关于我们</h4>
-              <p className="text-sm">
-                BioRxiv日报致力于为生物医学研究者提供最新、最前沿的预印本论文资讯。
-              </p>
+              <p className="text-sm">BioRxiv日报致力于为生物医学研究者提供最新、最前沿的预印本论文资讯。</p>
             </div>
 
             {/* 联系方式 */}
@@ -232,7 +230,7 @@ export function SiteSettingsView() {
               </div>
             </div>
 
-            {/* 社交媒体 */}
+            {/* 关注我们 */}
             <div>
               <h4 className="text-white text-base font-semibold mb-3">关注我们</h4>
               <div className="text-sm space-y-1">
@@ -253,3 +251,4 @@ export function SiteSettingsView() {
     </div>
   )
 }
+

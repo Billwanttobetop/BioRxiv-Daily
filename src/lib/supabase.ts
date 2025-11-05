@@ -10,9 +10,9 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey)
 
-export type Paper = Database['public']['tables']['papers']['Row']
-export type PaperAnalysis = Database['public']['tables']['paper_analysis']['Row']
-export type UserFavorite = Database['public']['tables']['user_favorites']['Row']
+export type Paper = Database['public']['Tables']['papers']['Row']
+export type PaperAnalysis = Database['public']['Tables']['paper_analysis']['Row']
+export type UserFavorite = Database['public']['Tables']['user_favorites']['Row']
 
 export async function getPaperAnalysis(paperId: string): Promise<PaperAnalysis | null> {
   const { data, error } = await supabase

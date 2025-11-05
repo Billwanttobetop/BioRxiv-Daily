@@ -260,6 +260,24 @@ export function AdminDashboardPage() {
               </div>
             </div>
 
+            {/* Recent Visits */}
+            {visitStats && visitStats.recentVisits.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-neutral-800 mb-4">最近访问记录</h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {visitStats.recentVisits.map((visit, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-neutral-500">{new Date(visit.created_at).toLocaleTimeString('zh-CN')}</span>
+                        <span className="font-medium text-neutral-800 truncate" title={visit.path}>{visit.path}</span>
+                      </div>
+                      <span className="text-neutral-600 font-mono text-xs">{visit.ip_address}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Top Functions */}
             {topFunctions.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
