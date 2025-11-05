@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Save, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -15,56 +15,56 @@ const settingFields: SettingItem[] = [
     key: 'ai_api_key',
     value: '',
     label: 'AI API Key',
-    description: '用于调用AI服务的API密钥',
+    description: '鐢ㄤ簬璋冪敤AI鏈嶅姟鐨凙PI瀵嗛挜',
     type: 'text'
   },
   {
     key: 'ai_base_url',
     value: '',
     label: 'AI Base URL',
-    description: 'AI服务的Base URL，例如 https://api.openai.com/v1',
+    description: 'AI鏈嶅姟鐨凚ase URL锛屼緥濡?https://api.openai.com/v1',
     type: 'url'
   },
   {
     key: 'copyright',
     value: '',
-    label: '版权声明',
-    description: '网站底部显示的版权信息',
+    label: '鐗堟潈澹版槑',
+    description: '缃戠珯搴曢儴鏄剧ず鐨勭増鏉冧俊鎭?,
     type: 'text'
   },
   {
     key: 'contact_email',
     value: '',
-    label: '联系邮箱',
-    description: '公开的联系邮箱地址',
+    label: '鑱旂郴閭',
+    description: '鍏紑鐨勮仈绯婚偖绠卞湴鍧€',
     type: 'text'
   },
   {
     key: 'contact_phone',
     value: '',
-    label: '联系电话',
-    description: '公开的联系电话号码',
+    label: '鑱旂郴鐢佃瘽',
+    description: '鍏紑鐨勮仈绯荤數璇濆彿鐮?,
     type: 'text'
   },
   {
     key: 'address',
     value: '',
-    label: '公司地址',
-    description: '公司或组织的地址信息',
+    label: '鍏徃鍦板潃',
+    description: '鍏徃鎴栫粍缁囩殑鍦板潃淇℃伅',
     type: 'textarea'
   },
   {
     key: 'social_twitter',
     value: '',
-    label: 'Twitter 链接',
-    description: 'Twitter 社交媒体主页链接',
+    label: 'Twitter 閾炬帴',
+    description: 'Twitter 绀句氦濯掍綋涓婚〉閾炬帴',
     type: 'url'
   },
   {
     key: 'social_github',
     value: '',
-    label: 'GitHub 链接',
-    description: 'GitHub 组织或账号链接',
+    label: 'GitHub 閾炬帴',
+    description: 'GitHub 缁勭粐鎴栬处鍙烽摼鎺?,
     type: 'url'
   }
 ]
@@ -96,8 +96,8 @@ export function SiteSettingsView() {
         setSettings(settingsMap)
       }
     } catch (error) {
-      console.error('获取站点设置失败:', error)
-      setMessage({ type: 'error', text: '获取站点设置失败' })
+      console.error('鑾峰彇绔欑偣璁剧疆澶辫触:', error)
+      setMessage({ type: 'error', text: '鑾峰彇绔欑偣璁剧疆澶辫触' })
     } finally {
       setLoading(false)
     }
@@ -108,7 +108,7 @@ export function SiteSettingsView() {
       setSaving(true)
       setMessage(null)
 
-      // 更新每个设置项
+      // 鏇存柊姣忎釜璁剧疆椤?
       for (const field of settingFields) {
         const { error } = await supabase
           .from('site_settings')
@@ -121,13 +121,13 @@ export function SiteSettingsView() {
         if (error) throw error
       }
 
-      setMessage({ type: 'success', text: '设置保存成功' })
+      setMessage({ type: 'success', text: '璁剧疆淇濆瓨鎴愬姛' })
       
-      // 3秒后清除消息
+      // 3绉掑悗娓呴櫎娑堟伅
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
-      console.error('保存设置失败:', error)
-      setMessage({ type: 'error', text: '保存设置失败，请重试' })
+      console.error('淇濆瓨璁剧疆澶辫触:', error)
+      setMessage({ type: 'error', text: '淇濆瓨璁剧疆澶辫触锛岃閲嶈瘯' })
     } finally {
       setSaving(false)
     }
@@ -150,11 +150,11 @@ export function SiteSettingsView() {
 
   return (
     <div className="space-y-6">
-      {/* 头部 */}
+      {/* 澶撮儴 */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-neutral-800">站点设置</h2>
-          <p className="text-neutral-600 mt-1">管理网站版权信息和联系方式</p>
+          <h2 className="text-2xl font-bold text-neutral-800">绔欑偣璁剧疆</h2>
+          <p className="text-neutral-600 mt-1">绠＄悊缃戠珯鐗堟潈淇℃伅鍜岃仈绯绘柟寮?/p>
         </div>
         <button
           onClick={handleSave}
@@ -162,11 +162,11 @@ export function SiteSettingsView() {
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Save className="w-4 h-4" />
-          {saving ? '保存中...' : '保存设置'}
+          {saving ? '淇濆瓨涓?..' : '淇濆瓨璁剧疆'}
         </button>
       </div>
 
-      {/* 消息提示 */}
+      {/* 娑堟伅鎻愮ず */}
       {message && (
         <div className={`p-4 rounded-lg ${
           message.type === 'success' 
@@ -177,7 +177,7 @@ export function SiteSettingsView() {
         </div>
       )}
 
-      {/* 设置表单 */}
+      {/* 璁剧疆琛ㄥ崟 */}
       <div className="bg-white rounded-lg border border-neutral-200 p-6">
         <div className="space-y-6">
           {settingFields.map((field) => (
@@ -193,7 +193,7 @@ export function SiteSettingsView() {
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder={`请输入${field.label}`}
+                  placeholder={`璇疯緭鍏?{field.label}`}
                 />
               ) : (
                 <input
@@ -201,7 +201,7 @@ export function SiteSettingsView() {
                   value={settings[field.key] || ''}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder={`请输入${field.label}`}
+                  placeholder={`璇疯緭鍏?{field.label}`}
                 />
               )}
             </div>
@@ -209,32 +209,32 @@ export function SiteSettingsView() {
         </div>
       </div>
 
-      {/* 预览区域 */}
+      {/* 棰勮鍖哄煙 */}
       <div className="bg-white rounded-lg border border-neutral-200 p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 mb-4">页脚预览</h3>
+        <h3 className="text-lg font-semibold text-neutral-800 mb-4">椤佃剼棰勮</h3>
         <div className="bg-neutral-800 text-neutral-300 p-8 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 关于我们 */}
+            {/* 鍏充簬鎴戜滑 */}
             <div>
-              <h4 className="text-white text-base font-semibold mb-3">关于我们</h4>
+              <h4 className="text-white text-base font-semibold mb-3">鍏充簬鎴戜滑</h4>
               <p className="text-sm">
-                BioRxiv日报致力于为生物医学研究者提供最新、最前沿的预印本论文资讯。
+                BioRxiv鏃ユ姤鑷村姏浜庝负鐢熺墿鍖诲鐮旂┒鑰呮彁渚涙渶鏂般€佹渶鍓嶆部鐨勯鍗版湰璁烘枃璧勮銆?
               </p>
             </div>
 
-            {/* 联系方式 */}
+            {/* 鑱旂郴鏂瑰紡 */}
             <div>
-              <h4 className="text-white text-base font-semibold mb-3">联系方式</h4>
+              <h4 className="text-white text-base font-semibold mb-3">鑱旂郴鏂瑰紡</h4>
               <div className="space-y-2 text-sm">
-                {settings.contact_email && <div>邮箱: {settings.contact_email}</div>}
-                {settings.contact_phone && <div>电话: {settings.contact_phone}</div>}
-                {settings.address && <div>地址: {settings.address}</div>}
+                {settings.contact_email && <div>閭: {settings.contact_email}</div>}
+                {settings.contact_phone && <div>鐢佃瘽: {settings.contact_phone}</div>}
+                {settings.address && <div>鍦板潃: {settings.address}</div>}
               </div>
             </div>
 
-            {/* 社交媒体 */}
+            {/* 绀句氦濯掍綋 */}
             <div>
-              <h4 className="text-white text-base font-semibold mb-3">关注我们</h4>
+              <h4 className="text-white text-base font-semibold mb-3">鍏虫敞鎴戜滑</h4>
               <div className="text-sm space-y-1">
                 {settings.social_twitter && <div>Twitter: {settings.social_twitter}</div>}
                 {settings.social_github && <div>GitHub: {settings.social_github}</div>}
@@ -242,10 +242,10 @@ export function SiteSettingsView() {
             </div>
           </div>
 
-          {/* 版权声明 */}
+          {/* 鐗堟潈澹版槑 */}
           <div className="mt-6 pt-6 border-t border-neutral-700">
             <p className="text-xs text-center text-neutral-400">
-              {settings.copyright || '暂无版权声明'}
+              {settings.copyright || '鏆傛棤鐗堟潈澹版槑'}
             </p>
           </div>
         </div>
@@ -253,3 +253,4 @@ export function SiteSettingsView() {
     </div>
   )
 }
+
