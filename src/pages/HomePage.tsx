@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Masonry from 'react-masonry-css'
-// @ts-ignore
-import type {} from 'react-masonry-css'
 import { Search, Tag as TagIcon, X, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
 import { supabase, Paper, PaperAnalysis } from '@/lib/supabase'
 import { PaperCard } from '@/components/PaperCard'
@@ -27,30 +25,37 @@ export function HomePage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [favorites, setFavorites] = useState<Set<string>>(new Set())
 
   const PAPERS_PER_PAGE = 50
 
-  useEffect(() => {
-    loadPapers({ initialLoad: true })
-    loadPopularTags()
-  }, [])
+  const fetchFavorites = useCallback(async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase
+        .from('user_favorites')
+        .select('paper_id')
+        .eq('user_id', user.id)
 
-  async function loadPapers({ initialLoad = false }: { initialLoad?: boolean } = {}) {
-    let pageToLoad: number;
+      if (error) throw error
+      setFavorites(new Set(data.map(fav => fav.paper_id)))
+    } catch (error) {
+      console.error('Error fetching favorites:', error)
+    }
+  }, [user])
 
+  const loadPapers = useCallback(async ({ initialLoad = false }: { initialLoad?: boolean } = {}) => {
+    const pageToLoad = initialLoad ? 1 : page + 1
     if (initialLoad) {
-      setLoading(true);
-      pageToLoad = 1;
+      setLoading(true)
     } else {
-      setLoadingMore(true);
-      pageToLoad = page + 1;
+      setLoadingMore(true)
     }
 
     try {
-      const from = (pageToLoad - 1) * PAPERS_PER_PAGE;
-      const to = from + PAPERS_PER_PAGE - 1;
+      const from = (pageToLoad - 1) * PAPERS_PER_PAGE
+      const to = from + PAPERS_PER_PAGE - 1
 
-      // 获取文献列表
       const { data: papersData, error: papersError } = await supabase
         .from('papers')
         .select('*')
@@ -58,57 +63,30 @@ export function HomePage() {
         .range(from, to)
 
       if (papersError) throw papersError
-
       if (!papersData || papersData.length < PAPERS_PER_PAGE) {
         setHasMore(false)
       }
 
-      // 获取分析数据
       const paperIds = papersData?.map(p => p.id) || []
-      const { data: analysisData } = await supabase
-        .from('paper_analysis')
-        .select('*')
-        .in('paper_id', paperIds)
+      const [{ data: analysisData }, { data: paperTagsData }, { data: tagsData }] = await Promise.all([
+        supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
+        supabase.from('paper_tags').select('*').in('paper_id', paperIds),
+        supabase.from('tags').select('id, name').in('id', [...new Set((await supabase.from('paper_tags').select('tag_id').in('paper_id', paperIds)).data?.map(pt => pt.tag_id) || [])]),
+      ])
 
-      // 获取标签关联
-      const { data: paperTagsData } = await supabase
-        .from('paper_tags')
-        .select('*')
-        .in('paper_id', paperIds)
-
-      // 获取所有标签
-      const tagIds = paperTagsData?.map(pt => pt.tag_id) || []
-      const uniqueTagIds = [...new Set(tagIds)]
-      
-      const { data: tagsData } = await supabase
-        .from('tags')
-        .select('*')
-        .in('id', uniqueTagIds)
-
-      // 创建标签ID到名称的映射
-      const tagIdToName = new Map<string, string>()
-      tagsData?.forEach(tag => {
-        tagIdToName.set(tag.id, tag.name)
-      })
-
-      // 组织标签数据
+      const tagIdToName = new Map<string, string>(tagsData?.map(tag => [tag.id, tag.name]))
       const paperTagsMap = new Map<string, string[]>()
       paperTagsData?.forEach(pt => {
         const paperId = pt.paper_id
-        if (!paperTagsMap.has(paperId)) {
-          paperTagsMap.set(paperId, [])
-        }
+        if (!paperTagsMap.has(paperId)) paperTagsMap.set(paperId, [])
         const tagName = tagIdToName.get(pt.tag_id)
-        if (tagName) {
-          paperTagsMap.get(paperId)!.push(tagName)
-        }
+        if (tagName) paperTagsMap.get(paperId)!.push(tagName)
       })
 
-      // 合并数据
       const merged = papersData?.map(paper => ({
         paper,
         analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
-        tags: paperTagsMap.get(paper.id) || []
+        tags: paperTagsMap.get(paper.id) || [],
       })) || []
 
       if (initialLoad) {
@@ -121,53 +99,30 @@ export function HomePage() {
     } catch (error) {
       console.error('Error loading papers:', error)
     } finally {
-      if (initialLoad) {
-        setLoading(false)
-      } else {
-        setLoadingMore(false)
-      }
+      if (initialLoad) setLoading(false)
+      else setLoadingMore(false)
     }
-  }
+  }, [page, user])
+
+  const loadPopularTags = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 10 })
+      if (error) throw error
+      setAllTags(data)
+    } catch (error) {
+      console.error('Error loading tags:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadPapers({ initialLoad: true })
+    loadPopularTags()
+    if (user) fetchFavorites()
+  }, [user])
 
   async function handleLoadMore() {
     if (!loadingMore && hasMore) {
       loadPapers({ initialLoad: false })
-    }
-  }
-
-  async function loadPopularTags() {
-    try {
-      // 获取所有标签关联
-      const { data: paperTagsData } = await supabase
-        .from('paper_tags')
-        .select('*')
-
-      // 获取所有标签
-      const tagIds = paperTagsData?.map(pt => pt.tag_id) || []
-      const uniqueTagIds = [...new Set(tagIds)]
-      
-      const { data: tagsData } = await supabase
-        .from('tags')
-        .select('*')
-        .in('id', uniqueTagIds)
-
-      // 统计每个标签的使用次数
-      const tagCounts = new Map<string, number>()
-      paperTagsData?.forEach(pt => {
-        const tag = tagsData?.find(t => t.id === pt.tag_id)
-        if (tag) {
-          tagCounts.set(tag.name, (tagCounts.get(tag.name) || 0) + 1)
-        }
-      })
-
-      const tags = Array.from(tagCounts.entries())
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10)
-
-      setAllTags(tags)
-    } catch (error) {
-      console.error('Error loading tags:', error)
     }
   }
 
@@ -538,6 +493,7 @@ export function HomePage() {
                           onAnalyze={handleAnalyze}
                           onTagClick={(tag) => setSelectedTag(tag)}
                           analyzing={analyzingId === paper.id}
+                          initialIsFavorited={favorites.has(paper.id)}
                         />
                       ))}
                     </Masonry>

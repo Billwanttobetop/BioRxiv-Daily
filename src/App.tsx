@@ -10,11 +10,13 @@ import { AdminPage } from '@/pages/AdminPage'
 import { PaperDetailPage } from '@/pages/PaperDetailPage'
 import { AdminLoginPage } from '@/pages/AdminLoginPage'
 import { AdminDashboardPage } from '@/pages/AdminDashboardPage'
+import { LogVisit } from '@/components/LogVisit'
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <LogVisit />
         <div className="min-h-screen bg-neutral-50 flex flex-col">
           <Routes>
             {/* Regular routes with navbar and footer */}

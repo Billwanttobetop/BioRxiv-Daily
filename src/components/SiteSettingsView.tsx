@@ -12,6 +12,20 @@ interface SettingItem {
 
 const settingFields: SettingItem[] = [
   {
+    key: 'ai_api_key',
+    value: '',
+    label: 'AI API Key',
+    description: '用于调用AI服务的API密钥',
+    type: 'text'
+  },
+  {
+    key: 'ai_base_url',
+    value: '',
+    label: 'AI Base URL',
+    description: 'AI服务的Base URL，例如 https://api.openai.com/v1',
+    type: 'url'
+  },
+  {
     key: 'copyright',
     value: '',
     label: '版权声明',

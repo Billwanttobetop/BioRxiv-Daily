@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Heart, ExternalLink, ChevronDown, ChevronUp, Share2, Tag as TagIcon } from 'lucide-react'
-import { Paper, PaperAnalysis } from '@/lib/supabase'
+import { Paper, PaperAnalysis, addFavorite, removeFavorite } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 interface PaperCardProps {
   paper: Paper
@@ -10,6 +11,7 @@ interface PaperCardProps {
   onAnalyze?: (paperId: string) => void
   onTagClick?: (tag: string) => void
   analyzing?: boolean
+  initialIsFavorited?: boolean
 }
 
 export function PaperCard({ 
@@ -18,13 +20,17 @@ export function PaperCard({
   tags = [],
   onAnalyze, 
   onTagClick,
-  analyzing 
+  analyzing,
+  initialIsFavorited = false
 }: PaperCardProps) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
   const [abstractExpanded, setAbstractExpanded] = useState(false)
   const [shareSuccess, setShareSuccess] = useState(false)
   const [institutionsExpanded, setInstitutionsExpanded] = useState(false)
+  const [isFavorited, setIsFavorited] = useState(initialIsFavorited)
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
 
 
   const handleShare = async () => {
@@ -45,6 +51,29 @@ export function PaperCard({
       setTimeout(() => setShareSuccess(false), 2000)
     }
   }
+
+  const handleFavorite = async () => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
+    setIsTogglingFavorite(true)
+    try {
+      if (isFavorited) {
+        await removeFavorite(user.id, paper.id)
+      } else {
+        await addFavorite(user.id, paper.id)
+      }
+      setIsFavorited(!isFavorited)
+    } catch (error) {
+      console.error("Error toggling favorite:", error)
+      // Optional: show an error message to the user
+    } finally {
+      setIsTogglingFavorite(false)
+    }
+  }
+
 
 
 
@@ -190,16 +219,25 @@ export function PaperCard({
             </div>
           </div>
           
-          {/* 第二行：分享按钮 */}
-          <div className="flex justify-end">
+          {/* 第二行：分享和收藏按钮 */}
+          <div className="flex justify-end items-center gap-2">
+            <button
+              onClick={handleFavorite}
+              disabled={isTogglingFavorite}
+              className="text-xs px-2 py-1 sm:px-3 sm:py-1.5 bg-neutral-100 text-neutral-700 rounded-md hover:bg-neutral-200 transition-colors flex items-center gap-1 relative disabled:opacity-50"
+              title={isFavorited ? "取消收藏" : "收藏"}
+            >
+              <Heart className={`w-3 h-3 sm:w-4 sm:h-4 transition-all ${isFavorited ? 'text-red-500 fill-current' : 'text-neutral-600'}`} />
+              <span className="hidden sm:inline">{isFavorited ? '已收藏' : '收藏'}</span>
+            </button>
             <button
               onClick={handleShare}
-              className="text-xs px-2 sm:px-4 py-1 sm:py-1.5 bg-neutral-100 text-neutral-700 rounded-md hover:bg-neutral-200 transition-colors flex items-center gap-1 relative"
+              className="text-xs px-2 py-1 sm:px-3 sm:py-1.5 bg-neutral-100 text-neutral-700 rounded-md hover:bg-neutral-200 transition-colors flex items-center gap-1 relative"
             >
               <Share2 className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">分享</span>
               {shareSuccess && (
-                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                <span className="absolute -top-6 right-0 text-xs bg-green-500 text-white px-2 py-0.5 rounded-md">
                   链接已复制
                 </span>
               )}
@@ -207,7 +245,7 @@ export function PaperCard({
           </div>
         </div>
 
-        {/* 展开的分析内容 */}
+        {/* 第三行：展开的分析内容 */}
         {expanded && analysis && (
           <div className="mt-4 space-y-4 border-t border-neutral-100 pt-4">
             {analysis.insights && (

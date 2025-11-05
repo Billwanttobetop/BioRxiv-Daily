@@ -19,12 +19,20 @@ interface TopFunction {
   count: number
 }
 
+interface VisitStats {
+  pv: number;
+  uv: number;
+  topPages: { path: string; count: number }[];
+  recentVisits: { created_at: string; path: string; ip_address: string }[];
+}
+
 export function AdminDashboardPage() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<Stats | null>(null)
   const [topFunctions, setTopFunctions] = useState<TopFunction[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'api-logs' | 'system-logs' | 'configs'>('dashboard')
+  const [visitStats, setVisitStats] = useState<VisitStats | null>(null);
 
   useEffect(() => {
     verifyAdminAndLoadData()
@@ -61,6 +69,17 @@ export function AdminDashboardPage() {
         setStats(statsData.data.overview)
         setTopFunctions(statsData.data.topFunctions || [])
       }
+      // Load visit stats
+      const { data: visitStatsData, error: visitStatsError } = await supabase.functions.invoke('get-visit-stats', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!visitStatsError && visitStatsData) {
+        setVisitStats(visitStatsData);
+      }
+
     } catch (error) {
       console.error('Failed to load admin data:', error)
       navigate('/admin/login')
@@ -179,6 +198,20 @@ export function AdminDashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'dashboard' && stats && (
           <div className="space-y-6">
+            {/* Visit Stats */}
+            {visitStats && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white rounded-lg shadow p-6">
+                  <p className="text-sm text-neutral-600">今日PV</p>
+                  <p className="text-3xl font-bold text-neutral-800 mt-2">{visitStats.pv}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-6">
+                  <p className="text-sm text-neutral-600">今日UV</p>
+                  <p className="text-3xl font-bold text-neutral-800 mt-2">{visitStats.uv}</p>
+                </div>
+              </div>
+            )}
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
