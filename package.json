@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm supabase gen types typescript --project-id fslbjdnmnoqwptzjiqtv > src/lib/database.types.ts || true && tsc -b && vite build",
+    "build": "tsc -b && vite build",
     "build:prod": "tsc -b && BUILD_MODE=prod vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -25,7 +25,6 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
     "postcss": "8.4.49",
-    "supabase": "^1.187.2",
     "tailwindcss": "v3.4.16",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.15.0",
@@ -83,10 +82,5 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
     "zod": "^3.25.76"
-  },
-  "pnpm": {
-    "allowed-scripts": {
-      "supabase": true
-    }
   }
 }
