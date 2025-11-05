@@ -150,9 +150,44 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          id: string
+          username: string | null
+          full_name: string | null
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          username?: string | null
+          full_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          username?: string | null
+          full_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {}
-    Functions: {}
+    Functions: {
+      get_popular_tags: {
+        Args: { limit_count: number }
+        Returns: { name: string; count: number }[]
+      }
+    }
     Enums: {}
     CompositeTypes: {}
   }
