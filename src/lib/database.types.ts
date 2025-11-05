@@ -43,6 +43,10 @@ export type Database = {
           title_cn: string | null
           abstract_cn: string | null
           main_institutions: string[] | null
+          insights: string | null
+          solutions: string | null
+          limitations: string | null
+          prospects: string | null
           created_at: string
           updated_at: string | null
         }
@@ -52,6 +56,10 @@ export type Database = {
           title_cn?: string | null
           abstract_cn?: string | null
           main_institutions?: string[] | null
+          insights?: string | null
+          solutions?: string | null
+          limitations?: string | null
+          prospects?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -61,6 +69,10 @@ export type Database = {
           title_cn?: string | null
           abstract_cn?: string | null
           main_institutions?: string[] | null
+          insights?: string | null
+          solutions?: string | null
+          limitations?: string | null
+          prospects?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -128,24 +140,30 @@ export type Database = {
       }
       site_settings: {
         Row: {
-          id: string
-          key: string
-          value: string
-          created_at: string
+          setting_key: string
+          setting_value: string | null
+          label: string | null
+          description: string | null
+          type: 'text' | 'textarea' | 'url' | string | null
+          created_at: string | null
           updated_at: string | null
         }
         Insert: {
-          id?: string
-          key: string
-          value: string
-          created_at?: string
+          setting_key: string
+          setting_value?: string | null
+          label?: string | null
+          description?: string | null
+          type?: 'text' | 'textarea' | 'url' | string | null
+          created_at?: string | null
           updated_at?: string | null
         }
         Update: {
-          id?: string
-          key?: string
-          value?: string
-          created_at?: string
+          setting_key?: string
+          setting_value?: string | null
+          label?: string | null
+          description?: string | null
+          type?: 'text' | 'textarea' | 'url' | string | null
+          created_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
