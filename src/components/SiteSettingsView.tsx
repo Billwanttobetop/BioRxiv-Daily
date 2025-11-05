@@ -121,13 +121,13 @@ export function SiteSettingsView() {
         if (error) throw error
       }
 
-      setMessage({ type: 'success', text: '璁剧疆淇濆瓨鎴愬姛' })
+      setMessage({ type: 'success', text: '设置保存成功' })
       
       // 3绉掑悗娓呴櫎娑堟伅
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
-      console.error('淇濆瓨璁剧疆澶辫触:', error)
-      setMessage({ type: 'error', text: '淇濆瓨璁剧疆澶辫触锛岃閲嶈瘯' })
+      console.error('保存设置失败:', error)
+      setMessage({ type: 'error', text: '保存设置失败，请重试' })
     } finally {
       setSaving(false)
     }
@@ -150,11 +150,11 @@ export function SiteSettingsView() {
 
   return (
     <div className="space-y-6">
-      {/* 澶撮儴 */}
+      {/* 头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-neutral-800">绔欑偣璁剧疆</h2>
-          <p className="text-neutral-600 mt-1">绠＄悊缃戠珯鐗堟潈淇℃伅鍜岃仈绯绘柟寮?/p>
+          <h2 className="text-2xl font-bold text-neutral-800">站点设置</h2>
+          <p className="text-neutral-600 mt-1">管理网站版权信息和联系方式</p>
         </div>
         <button
           onClick={handleSave}
@@ -162,7 +162,7 @@ export function SiteSettingsView() {
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Save className="w-4 h-4" />
-          {saving ? '淇濆瓨涓?..' : '淇濆瓨璁剧疆'}
+          {saving ? '保存中...' : '保存设置'}
         </button>
       </div>
 
@@ -193,7 +193,7 @@ export function SiteSettingsView() {
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder={`璇疯緭鍏?{field.label}`}
+                  placeholder={`请输入${field.label}`}
                 />
               ) : (
                 <input
@@ -201,7 +201,7 @@ export function SiteSettingsView() {
                   value={settings[field.key] || ''}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder={`璇疯緭鍏?{field.label}`}
+                  placeholder={`请输入${field.label}`}
                 />
               )}
             </div>
@@ -209,32 +209,30 @@ export function SiteSettingsView() {
         </div>
       </div>
 
-      {/* 棰勮鍖哄煙 */}
+      {/* 预览区域 */}
       <div className="bg-white rounded-lg border border-neutral-200 p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 mb-4">椤佃剼棰勮</h3>
+        <h3 className="text-lg font-semibold text-neutral-800 mb-4">页面预览</h3>
         <div className="bg-neutral-800 text-neutral-300 p-8 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 鍏充簬鎴戜滑 */}
+            {/* 关于我们 */}
             <div>
-              <h4 className="text-white text-base font-semibold mb-3">鍏充簬鎴戜滑</h4>
-              <p className="text-sm">
-                BioRxiv鏃ユ姤鑷村姏浜庝负鐢熺墿鍖诲鐮旂┒鑰呮彁渚涙渶鏂般€佹渶鍓嶆部鐨勯鍗版湰璁烘枃璧勮銆?
-              </p>
+              <h4 className="text-white text-base font-semibold mb-3">关于我们</h4>
+              <p className="text-sm">BioRxiv日报致力于为生物医学研究者提供最新、最前沿的预印本论文资讯。</p>
             </div>
 
-            {/* 鑱旂郴鏂瑰紡 */}
+            {/* 联系方式 */}
             <div>
-              <h4 className="text-white text-base font-semibold mb-3">鑱旂郴鏂瑰紡</h4>
+              <h4 className="text-white text-base font-semibold mb-3">联系方式</h4>
               <div className="space-y-2 text-sm">
-                {settings.contact_email && <div>閭: {settings.contact_email}</div>}
-                {settings.contact_phone && <div>鐢佃瘽: {settings.contact_phone}</div>}
-                {settings.address && <div>鍦板潃: {settings.address}</div>}
+                {settings.contact_email && <div>邮箱: {settings.contact_email}</div>}
+                {settings.contact_phone && <div>电话: {settings.contact_phone}</div>}
+                {settings.address && <div>地址: {settings.address}</div>}
               </div>
             </div>
 
-            {/* 绀句氦濯掍綋 */}
+            {/* 关注我们 */}
             <div>
-              <h4 className="text-white text-base font-semibold mb-3">鍏虫敞鎴戜滑</h4>
+              <h4 className="text-white text-base font-semibold mb-3">关注我们</h4>
               <div className="text-sm space-y-1">
                 {settings.social_twitter && <div>Twitter: {settings.social_twitter}</div>}
                 {settings.social_github && <div>GitHub: {settings.social_github}</div>}
@@ -242,10 +240,10 @@ export function SiteSettingsView() {
             </div>
           </div>
 
-          {/* 鐗堟潈澹版槑 */}
+          {/* 版权声明 */}
           <div className="mt-6 pt-6 border-t border-neutral-700">
             <p className="text-xs text-center text-neutral-400">
-              {settings.copyright || '鏆傛棤鐗堟潈澹版槑'}
+              {settings.copyright || '暂无版权声明'}
             </p>
           </div>
         </div>
