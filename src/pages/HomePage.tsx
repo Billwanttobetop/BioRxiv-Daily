@@ -104,21 +104,50 @@ export function HomePage() {
     }
   }, [page, user])
 
+  // 根据当前已加载的论文列表计算热门标签的回退逻辑
+  function computeFallbackTagsFromPapers() {
+    const counts = new Map<string, number>()
+    papers.forEach(p => {
+      p.tags.forEach(t => counts.set(t, (counts.get(t) || 0) + 1))
+    })
+    const fallback = Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+    setAllTags(fallback)
+  }
+
   const loadPopularTags = useCallback(async () => {
     try {
       const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 10 })
       if (error) throw error
-      setAllTags(data)
+      if (data && data.length > 0) {
+        setAllTags(data)
+      } else if (papers.length > 0) {
+        // RPC返回空数据时，使用前端回退
+        computeFallbackTagsFromPapers()
+      }
     } catch (error) {
       console.error('Error loading tags:', error)
+      // RPC失败时，使用前端回退
+      if (papers.length > 0) {
+        computeFallbackTagsFromPapers()
+      }
     }
-  }, [])
+  }, [papers])
 
   useEffect(() => {
     loadPapers({ initialLoad: true })
     loadPopularTags()
     if (user) fetchFavorites()
   }, [user])
+
+  // 当论文已加载但热门标签仍为空时，自动计算回退标签
+  useEffect(() => {
+    if (papers.length > 0 && allTags.length === 0) {
+      computeFallbackTagsFromPapers()
+    }
+  }, [papers, allTags])
 
   async function handleLoadMore() {
     if (!loadingMore && hasMore) {
@@ -337,28 +366,28 @@ export function HomePage() {
             </div>
           </div>
 
-          {/* 标签云 */}
-          {allTags.length > 0 && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <TagIcon className="w-4 h-4 text-neutral-500" />
-                  <span className="text-sm text-neutral-600">热门标签</span>
-                </div>
-                <button
-                  onClick={() => setTagsExpanded(!tagsExpanded)}
-                  className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
-                >
-                  {tagsExpanded ? (
-                    <>收起 <ChevronUp className="w-3 h-3" /></>
-                  ) : (
-                    <>展开 <ChevronDown className="w-3 h-3" /></>
-                  )}
-                </button>
+          {/* 标签云（始终显示容器，空时显示占位文案） */}
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <TagIcon className="w-4 h-4 text-neutral-500" />
+                <span className="text-sm text-neutral-600">热门标签</span>
               </div>
-              {tagsExpanded && (
-                <div className="flex flex-wrap gap-2">
-                  {allTags.map((tag) => (
+              <button
+                onClick={() => setTagsExpanded(!tagsExpanded)}
+                className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
+              >
+                {tagsExpanded ? (
+                  <>收起 <ChevronUp className="w-3 h-3" /></>
+                ) : (
+                  <>展开 <ChevronDown className="w-3 h-3" /></>
+                )}
+              </button>
+            </div>
+            {tagsExpanded && (
+              <div className="flex flex-wrap gap-2">
+                {allTags.length > 0 ? (
+                  allTags.map((tag) => (
                     <button
                       key={tag.name}
                       onClick={() => setSelectedTag(selectedTag === tag.name ? null : tag.name)}
@@ -370,20 +399,22 @@ export function HomePage() {
                     >
                       {tag.name} ({tag.count})
                     </button>
-                  ))}
-                  {selectedTag && (
-                    <button
-                      onClick={() => setSelectedTag(null)}
-                      className="text-xs px-3 py-1 bg-neutral-100 text-neutral-700 rounded-full hover:bg-neutral-200 flex items-center gap-1"
-                    >
-                      <X className="w-3 h-3" />
-                      清除筛选
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                  ))
+                ) : (
+                  <span className="text-xs text-neutral-500">暂无热门标签</span>
+                )}
+                {selectedTag && (
+                  <button
+                    onClick={() => setSelectedTag(null)}
+                    className="text-xs px-3 py-1 bg-neutral-100 text-neutral-700 rounded-full hover:bg-neutral-200 flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" />
+                    清除筛选
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
