@@ -16,6 +16,8 @@ export type Database = {
           abstract: string | null
           authors: string[]
           published_date: string
+          source_url: string | null
+          pdf_url: string | null
           created_at: string
         }
         Insert: {
@@ -24,6 +26,8 @@ export type Database = {
           abstract?: string | null
           authors?: string[]
           published_date: string
+          source_url?: string | null
+          pdf_url?: string | null
           created_at?: string
         }
         Update: {
@@ -32,6 +36,8 @@ export type Database = {
           abstract?: string | null
           authors?: string[]
           published_date?: string
+          source_url?: string | null
+          pdf_url?: string | null
           created_at?: string
         }
         Relationships: []
