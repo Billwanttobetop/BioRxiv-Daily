@@ -11,6 +11,7 @@ import { PaperDetailPage } from '@/pages/PaperDetailPage'
 import { AdminLoginPage } from '@/pages/AdminLoginPage'
 import { AdminDashboardPage } from '@/pages/AdminDashboardPage'
 import { LogVisit } from '@/components/LogVisit'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           </Routes>
+          <SpeedInsights />
         </div>
       </BrowserRouter>
     </AuthProvider>
