@@ -37,7 +37,7 @@
 - 欢迎加入我们的微信群，交流学术进展与产品建议。
 - 我们会在此处放置微信群截图（示例占位）：
   - 请在仓库 `docs/` 目录中添加 `wechat-group.png` 后，README 将展示：
-  -<img width="450" height="500" alt="image" src="https://github.com/user-attachments/assets/8f1b3877-2cb3-499d-9574-baeefae9912b" />
+  -<img width="140" height="200" alt="image" src="https://github.com/user-attachments/assets/8f1b3877-2cb3-499d-9574-baeefae9912b" />
 
 `
 
