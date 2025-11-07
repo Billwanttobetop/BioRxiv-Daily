@@ -35,9 +35,10 @@
 
 ## 加群交流
 - 欢迎加入我们的微信群，交流学术进展与产品建议。
-- `![微信群](docs/wechat-group.png)`
 
-`
+
+<img width="200" height="260" alt="image" src="https://github.com/user-attachments/assets/987ea0a4-3b86-4713-96fc-03d5ce223a87" />
+
 
 ## 贡献指南（仅前端）
 - 欢迎提交 Issue 与 PR：
