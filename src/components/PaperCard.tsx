@@ -3,6 +3,7 @@ import { Heart, ExternalLink, ChevronDown, ChevronUp, Share2, Tag as TagIcon } f
 import { Paper, PaperAnalysis, addFavorite, removeFavorite } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { PaperDeepAnalysis } from './PaperDeepAnalysis'
 
 interface PaperCardProps {
   paper: Paper
@@ -193,7 +194,7 @@ export function PaperCard({
                   disabled={analyzing}
                   className="text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {analyzing ? '分析中...' : 'AI分析'}
+                  {analyzing ? '翻译中...' : '翻译标题摘要'}
                 </button>
               )}
               {analysis && (
@@ -248,30 +249,12 @@ export function PaperCard({
         {/* 第三行：展开的分析内容 */}
         {expanded && analysis && (
           <div className="mt-4 space-y-4 border-t border-neutral-100 pt-4">
-            {analysis.insights && (
-              <div>
-                <h4 className="font-semibold text-neutral-800 mb-2">全文洞察</h4>
-                <p className="text-sm text-neutral-600 whitespace-pre-line">{analysis.insights}</p>
-              </div>
-            )}
-            {analysis.solutions && (
-              <div>
-                <h4 className="font-semibold text-neutral-800 mb-2">解决方案</h4>
-                <p className="text-sm text-neutral-600 whitespace-pre-line">{analysis.solutions}</p>
-              </div>
-            )}
-            {analysis.limitations && (
-              <div>
-                <h4 className="font-semibold text-neutral-800 mb-2">局限性</h4>
-                <p className="text-sm text-neutral-600 whitespace-pre-line">{analysis.limitations}</p>
-              </div>
-            )}
-            {analysis.prospects && (
-              <div>
-                <h4 className="font-semibold text-neutral-800 mb-2">研究展望</h4>
-                <p className="text-sm text-neutral-600 whitespace-pre-line">{analysis.prospects}</p>
-              </div>
-            )}
+            {/* 新的深度分析组件 */}
+            <PaperDeepAnalysis 
+              paperId={paper.id}
+              title={paper.title}
+              abstract={paper.abstract}
+            />
           </div>
         )}
       </div>
