@@ -144,6 +144,54 @@ export type Database = {
         }
         Relationships: []
       }
+      paper_deep_analysis: {
+        Row: {
+          id: string
+          paper_id: string
+          motivation: string
+          insights: string[]
+          methods: Json
+          experiments: Json
+          results: Json
+          technical_novelty_score: number
+          practical_impact_score: number
+          theoretical_contribution_score: number
+          confidence_score: number
+          analysis_status: 'completed' | 'pending'
+          analyzed_at: string
+        }
+        Insert: {
+          id?: string
+          paper_id: string
+          motivation?: string
+          insights?: string[]
+          methods?: Json
+          experiments?: Json
+          results?: Json
+          technical_novelty_score?: number
+          practical_impact_score?: number
+          theoretical_contribution_score?: number
+          confidence_score?: number
+          analysis_status?: 'completed' | 'pending'
+          analyzed_at?: string
+        }
+        Update: {
+          id?: string
+          paper_id?: string
+          motivation?: string
+          insights?: string[]
+          methods?: Json
+          experiments?: Json
+          results?: Json
+          technical_novelty_score?: number
+          practical_impact_score?: number
+          theoretical_contribution_score?: number
+          confidence_score?: number
+          analysis_status?: 'completed' | 'pending'
+          analyzed_at?: string
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           setting_key: string

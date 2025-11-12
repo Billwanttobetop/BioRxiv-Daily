@@ -11,23 +11,9 @@ interface DeepAnalysis {
   paper_id: string
   motivation: string
   insights: string[]
-  methods: {
-    overview: string
-    key_techniques: string[]
-    innovations: string[]
-  }
-  experiments: {
-    design: string
-    datasets: string[]
-    metrics: string[]
-    baselines: string[]
-  }
-  results: {
-    main_findings: string[]
-    performance_gains: string[]
-    significance: string
-    limitations: string[]
-  }
+  methods: any
+  experiments: any
+  results: any
   technical_novelty_score: number
   practical_impact_score: number
   theoretical_contribution_score: number
@@ -86,8 +72,9 @@ export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete
 
       if (error) throw error
       if (data) {
-        setAnalysis(data)
-        onAnalysisComplete?.(data)
+        const normalized: DeepAnalysis = (data as any).data ? (data as any).data : (data as any)
+        setAnalysis(normalized)
+        onAnalysisComplete?.(normalized)
       }
     } catch (error) {
       console.error('检查深度分析失败:', error)
