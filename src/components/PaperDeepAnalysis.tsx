@@ -33,10 +33,12 @@ interface PaperDeepAnalysisProps {
   paperId: string
   title: string
   abstract: string
+  sourceUrl?: string | null
+  pdfUrl?: string | null
   onAnalysisComplete?: (analysis: DeepAnalysis) => void
 }
 
-export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete }: PaperDeepAnalysisProps) {
+export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl, onAnalysisComplete }: PaperDeepAnalysisProps) {
   const [analysis, setAnalysis] = useState<DeepAnalysis | null>(null)
   const [basicAnalysis, setBasicAnalysis] = useState<PaperAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
@@ -87,23 +89,23 @@ export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete
     setError(null)
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData?.session?.access_token
-      const { data, error } = await supabase.functions.invoke('analyze-paper-deep', {
-        body: {
-          paper_id: paperId,
-          analysis_type: 'comprehensive'
-        },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined
+      const resp = await fetch('/api/deep-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paperId, title, abstract, source_url: sourceUrl, pdf_url: pdfUrl })
       })
 
-      if (error) throw error
+      if (!resp.ok) {
+        const txt = await resp.text()
+        throw new Error(txt || '分析服务不可用')
+      }
 
-      if (data.success) {
-        setAnalysis(data.data)
-        onAnalysisComplete?.(data.data)
+      const json = await resp.json()
+      if (json.success) {
+        setAnalysis(json.data)
+        onAnalysisComplete?.(json.data)
       } else {
-        throw new Error(data.error?.message || '分析失败')
+        throw new Error(json.error?.message || '分析失败')
       }
     } catch (error) {
       console.error('深度分析失败:', error)

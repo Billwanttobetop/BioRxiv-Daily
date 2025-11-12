@@ -254,6 +254,8 @@ export function PaperCard({
               paperId={paper.id}
               title={paper.title}
               abstract={paper.abstract}
+              sourceUrl={paper.source_url}
+              pdfUrl={paper.pdf_url}
             />
           </div>
         )}
