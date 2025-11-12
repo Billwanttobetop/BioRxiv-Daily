@@ -87,11 +87,14 @@ export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete
     setError(null)
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
       const { data, error } = await supabase.functions.invoke('analyze-paper-deep', {
         body: {
           paper_id: paperId,
           analysis_type: 'comprehensive'
-        }
+        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
       })
 
       if (error) throw error
@@ -317,43 +320,6 @@ export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete
 
   return (
     <div className="space-y-6">
-      {/* 基础翻译信息 */}
-      {basicAnalysis && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">基础翻译</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-medium mb-2">中文标题</h4>
-              <p className="text-sm">{basicAnalysis.title_cn || title}</p>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">中文摘要</h4>
-              <ScrollArea className="h-32 w-full">
-                <p className="text-sm leading-relaxed">{basicAnalysis.abstract_cn || abstract}</p>
-              </ScrollArea>
-            </div>
-            {basicAnalysis.main_institutions && basicAnalysis.main_institutions.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2">主要研究机构</h4>
-                <div className="flex flex-wrap gap-2">
-                  {basicAnalysis.main_institutions.map((inst, index) => (
-                    <Badge key={index} variant="outline">{inst}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">
-                翻译状态: {basicAnalysis.translation_status === 'completed' ? '已完成' : '处理中'}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* 深度分析控制 */}
       <Card>
         <CardHeader>
@@ -366,7 +332,7 @@ export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete
           {analysis ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                深度分析已完成，点击下方标签查看详细分析结果
+                深度分析已完成，点击下方标签查看结果
               </p>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -389,9 +355,6 @@ export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                基于论文全文进行深度学术分析，包括研究动机、核心洞见、方法创新、实验设计和结果分析
-              </p>
               <Button
                 onClick={performDeepAnalysis}
                 disabled={analyzing}
@@ -412,7 +375,7 @@ export function PaperDeepAnalysis({ paperId, title, abstract, onAnalysisComplete
               {error && (
                 <div className="flex items-center space-x-2 text-red-600 text-sm">
                   <AlertCircle className="w-4 h-4" />
-                  <span>{error}</span>
+                  <span>{error.includes('non-2xx') ? '深度分析失败，请稍后重试或联系管理员' : error}</span>
                 </div>
               )}
             </div>
