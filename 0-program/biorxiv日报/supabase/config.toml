@@ -22,7 +22,7 @@ port = 54322
 shadow_port = 54320
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
 # server_version_num;` on the remote database to check.
-major_version = 15
+major_version = 17
 
 [db.pooler]
 enabled = false
@@ -243,12 +243,6 @@ url = ""
 
 [edge_runtime]
 enabled = true
-# Configure one of the supported pooler modes: `transaction`, `session`.
-pool_mode = "transaction"
-# How many concurrent connections can be made to the database. Default: 10
-max_client_conn = 10
-# How many database connections can be created per Supabase user. Default: 2
-default_pool_size = 2
 
 [analytics]
 enabled = false
