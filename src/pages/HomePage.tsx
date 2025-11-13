@@ -28,6 +28,7 @@ export function HomePage() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [initialized, setInitialized] = useState(false)
   const tagsDebounceRef = { current: 0 as any }
+  const [restoredScroll, setRestoredScroll] = useState(false)
 
   const PAPERS_PER_PAGE = 50
   const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'true') === 'true'
@@ -338,6 +339,28 @@ export function HomePage() {
     } else {
       setExpandedDates(new Set([today]))
     }
+
+    // 恢复滚动位置（用户返回页面时不丢失阅读位置）
+    const savedScroll = Number(localStorage.getItem('scrollY') || '0')
+    if (!isNaN(savedScroll) && savedScroll > 0) {
+      window.scrollTo({ top: savedScroll, behavior: 'instant' as any })
+      setRestoredScroll(true)
+    }
+
+    const onBeforeLeave = () => {
+      localStorage.setItem('scrollY', String(window.scrollY))
+    }
+    const onVisibility = () => {
+      if (document.hidden) {
+        localStorage.setItem('scrollY', String(window.scrollY))
+      }
+    }
+    window.addEventListener('beforeunload', onBeforeLeave)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeLeave)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [])
 
   const toggleDateExpansion = (date: string) => {
@@ -350,6 +373,15 @@ export function HomePage() {
     setExpandedDates(newExpanded)
     localStorage.setItem('expandedDates', JSON.stringify(Array.from(newExpanded)))
   }
+
+  // 分析中的论文保持标记与位置，不因切换页面丢失
+  useEffect(() => {
+    if (analyzingId) {
+      localStorage.setItem('analyzingId', analyzingId)
+    } else {
+      localStorage.removeItem('analyzingId')
+    }
+  }, [analyzingId])
 
   const expandAllDates = () => {
     setExpandedDates(new Set(dateGroups.map(group => group.date)))
