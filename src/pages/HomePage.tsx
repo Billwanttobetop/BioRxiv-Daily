@@ -28,6 +28,7 @@ export function HomePage() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
 
   const PAPERS_PER_PAGE = 50
+  const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'true') === 'true'
 
   const fetchFavorites = useCallback(async () => {
     if (!user) return
@@ -119,20 +120,20 @@ export function HomePage() {
 
   const loadPopularTags = useCallback(async () => {
     try {
+      if (DISABLE_TAGS_RPC) {
+        if (papers.length > 0) computeFallbackTagsFromPapers()
+        return
+      }
       const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 10 })
       if (error) throw error
       if (data && data.length > 0) {
         setAllTags(data)
       } else if (papers.length > 0) {
-        // RPC返回空数据时，使用前端回退
         computeFallbackTagsFromPapers()
       }
     } catch (error) {
-      console.error('Error loading tags:', error)
-      // RPC失败时，使用前端回退
-      if (papers.length > 0) {
-        computeFallbackTagsFromPapers()
-      }
+      // 安静回退
+      if (papers.length > 0) computeFallbackTagsFromPapers()
     }
   }, [papers])
 

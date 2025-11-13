@@ -54,7 +54,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Fetch text content
   const text = await fetchTextFromSources(source_url, pdf_url)
-  const content = text && text.length > 500 ? text : `${title || ''}\n\n${abstract || ''}`
+  const maxChars = parseInt(process.env.ANALYSIS_MAX_CHARS || '12000', 10)
+  const baseContent = text && text.length > 500 ? text : `${title || ''}\n\n${abstract || ''}`
+  const content = (baseContent || '').slice(0, Math.max(1000, maxChars))
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
@@ -105,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
     if (!resp.ok) {
       const t = await resp.text()
-      res.status(500).json({ success: false, error: { message: `DeepSeek error: ${t}` } })
+      res.status(200).json({ success: false, error: { message: `DeepSeek error: ${t}` } })
       return
     }
     const json = await resp.json()
