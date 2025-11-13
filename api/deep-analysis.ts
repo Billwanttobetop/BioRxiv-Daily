@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，不要输出任何解释性文字或多余符号。写作要求：专业但易读、语句简洁、信息密度高，避免空话与重复；不要照搬摘要原句；若信息不足明确说明“信息不足”，不要臆造。不要输出“公式：”或任何占位符。结构为“动机/洞见/方法(含创新)/实验/结果”，条目与长度受控：\n` +
+  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，不要输出任何解释性文字或多余符号。写作要求：专业但易读、语句简洁、信息密度高，避免空话与重复；不要照搬摘要原句；若信息不足明确说明“信息不足”，不要臆造。不要输出“公式：”或任何占位符。结构为“动机/洞见/方法(含创新)/实验/结果与局限”，条目与长度受控：\n` +
     `【文本】\n${content}\n\n` +
     `【JSON结构】\n` +
     `{
@@ -72,18 +72,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       "insights": ["string"],               // 洞见：提出解决问题的核心思路或直觉（最多5条，每条35-60字；合并同义）
       "methods": {
         "overview": "string",              // 方法概述：如何实现上述洞见（120-160字）
+        "details": "string",               // 技术路径：关键步骤、参数/约束与实现要点（120-160字）
         "innovations": ["string"]          // 创新：与既有方法的关键差异（最多3条）
       },
       "experiments": {
-        "design": "string",                // 实验设计（中文段落，100-150字；描述对象、规模、比较维度）
-        "datasets": ["string"],            // 数据集（数组，≤6项，给出名称或来源）
-        "metrics": ["string"],             // 评估指标（数组，≤5项，如准确率、Kendall’s Tau等）
-        "baselines": ["string"]            // 基线方法（数组，≤4项）
+        "design": "string",                // 实验方法：对象/规模/流程/对照设置（120-160字）
+        "evaluation": "string"             // 评估解释：为何选这些指标与评价方式（80-120字）
       },
       "results": {
-        "main_findings": ["string"],       // 主要发现（中文要点数组，最多4条；优先可量化结论）
-        "significance": "string",          // 结果意义（中文段落，100-140字；指向应用或理论）
-        "limitations": ["string"]          // 局限（中文要点数组，最多3条；避免与方法描述重复）
+        "main_findings": ["string"],       // 主要发现（最多4条；优先可量化结论）
+        "significance": "string",          // 结果意义（100-140字；指向应用或理论）
+        "limitations": ["string"],         // 局限（最多3条；避免与方法重复）
+        "future_directions": "string"      // 未来方向（100-140字；具体、可验证）
       }
     }`
 
@@ -141,18 +141,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       insights: normList(parsed.insights, 5),
       methods: {
         overview: normText(parsed.methods?.overview),
+        details: normText(parsed.methods?.details),
         innovations: normList(parsed.methods?.innovations, 3),
       },
       experiments: {
         design: normText(parsed.experiments?.design),
-        datasets: normList(parsed.experiments?.datasets, 6),
-        metrics: normList(parsed.experiments?.metrics, 5),
-        baselines: normList(parsed.experiments?.baselines, 4),
+        evaluation: normText(parsed.experiments?.evaluation),
       },
       results: {
         main_findings: normList(parsed.results?.main_findings, 4),
         significance: normText(parsed.results?.significance),
         limitations: normList(parsed.results?.limitations, 3),
+        future_directions: normText(parsed.results?.future_directions),
       },
     }
     res.status(200).json({ success: true, data: normalized })

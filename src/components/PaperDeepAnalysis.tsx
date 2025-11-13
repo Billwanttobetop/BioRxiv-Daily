@@ -11,18 +11,18 @@ interface DeepAnalysis {
   insights: string[]
   methods: {
     overview: string
+    details?: string
     innovations: string[]
   }
   experiments: {
     design: string
-    datasets: string[]
-    metrics: string[]
-    baselines: string[]
+    evaluation?: string
   }
   results: {
     main_findings: string[]
     significance: string
     limitations: string[]
+    future_directions?: string
   }
 }
 
@@ -188,6 +188,12 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
                 <h4 className="text-sm font-medium mb-1">方法概述</h4>
                 <p className="text-[13px] sm:text-sm leading-relaxed break-words">{analysis.methods.overview}</p>
               </div>
+              {analysis.methods.details && (
+                <div>
+                  <h4 className="text-sm font-medium mb-1">技术路径</h4>
+                  <p className="text-[13px] sm:text-sm leading-relaxed break-words">{analysis.methods.details}</p>
+                </div>
+              )}
               <div>
                 <h4 className="text-sm font-medium mb-1">方法创新</h4>
                 <div className="space-y-1">
@@ -214,32 +220,13 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
                 <h4 className="text-sm font-medium mb-1">实验设计</h4>
                 <p className="text-[13px] sm:text-sm leading-relaxed break-words">{analysis.experiments.design}</p>
               </div>
-              <div className="md:grid md:grid-cols-3 md:gap-4 space-y-3 md:space-y-0">
+              {analysis.experiments.evaluation && (
                 <div>
-                  <h4 className="text-sm font-medium mb-1">数据集</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.experiments.datasets.map((d, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{d}</Badge>
-                    ))}
-                  </div>
+                  <h4 className="text-sm font-medium mb-1">评估解释</h4>
+                  <p className="text-[13px] sm:text-sm leading-relaxed break-words">{analysis.experiments.evaluation}</p>
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-1">评估指标</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.experiments.metrics.map((m, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{m}</Badge>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-1">基线方法</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.experiments.baselines.map((b, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{b}</Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              )}
+              {/* 已移除数据集/指标/基线的列表展示，改为上方“评估解释”段落 */}
             </div>
           )}
         </section>
@@ -277,6 +264,12 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
                   ))}
                 </div>
               </div>
+              {analysis.results.future_directions && (
+                <div>
+                  <h4 className="text-sm font-medium mb-1">未来方向</h4>
+                  <p className="text-[13px] sm:text-sm leading-relaxed break-words">{analysis.results.future_directions}</p>
+                </div>
+              )}
             </div>
           )}
         </section>
