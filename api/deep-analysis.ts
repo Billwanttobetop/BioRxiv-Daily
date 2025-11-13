@@ -64,16 +64,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，不要输出任何解释性文字或多余符号。写作要求：专业但易读、语句简洁、信息密度高，避免空话与重复；不要照搬摘要原句；若信息不足明确说明“信息不足”，不要臆造。结构与条目数量必须受控：\n` +
+  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，不要输出任何解释性文字或多余符号。写作要求：专业但易读、语句简洁、信息密度高，避免空话与重复；不要照搬摘要原句；若信息不足明确说明“信息不足”，不要臆造。不要输出“公式：”或任何占位符。结构为“动机/洞见/方法(含创新)/实验/结果”，条目与长度受控：\n` +
     `【文本】\n${content}\n\n` +
     `【JSON结构】\n` +
     `{
-      "motivation": "string",               // 研究动机（中文段落，120-180字，聚焦1-2个核心矛盾或痛点）
-      "insights": ["string"],               // 核心洞见（中文要点数组，最多5条，每条35-60字；合并同义、避免重复）
+      "motivation": "string",               // 动机：要解决的核心问题与痛点（120-180字）
+      "insights": ["string"],               // 洞见：提出解决问题的核心思路或直觉（最多5条，每条35-60字；合并同义）
       "methods": {
-        "overview": "string",              // 方法总体思路（中文段落，120-160字；用“提出/设计/证明”等动词开头）
-        "key_techniques": ["string"],      // 关键技术（中文要点数组，最多4条；避免与创新重复）
-        "innovations": ["string"]          // 方法创新点（中文要点数组，最多3条；突出与现有方法差异）
+        "overview": "string",              // 方法概述：如何实现上述洞见（120-160字）
+        "innovations": ["string"]          // 创新：与既有方法的关键差异（最多3条）
       },
       "experiments": {
         "design": "string",                // 实验设计（中文段落，100-150字；描述对象、规模、比较维度）
@@ -142,7 +141,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       insights: normList(parsed.insights, 5),
       methods: {
         overview: normText(parsed.methods?.overview),
-        key_techniques: normList(parsed.methods?.key_techniques, 4),
         innovations: normList(parsed.methods?.innovations, 3),
       },
       experiments: {
