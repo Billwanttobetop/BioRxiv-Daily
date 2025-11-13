@@ -7,8 +7,13 @@ import { useEffect, useState } from 'react'
 export function Navbar() {
   const { user, signOut } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
+  const DISABLE_ADMIN_VERIFY = (import.meta.env.VITE_DISABLE_ADMIN_VERIFY ?? 'true') === 'true'
 
   useEffect(() => {
+    if (DISABLE_ADMIN_VERIFY) {
+      setIsAdmin(false)
+      return
+    }
     checkAdminStatus()
   }, [user])
 
@@ -19,6 +24,10 @@ export function Navbar() {
     }
 
     try {
+      if (DISABLE_ADMIN_VERIFY) {
+        setIsAdmin(false)
+        return
+      }
       const { data: authData } = await supabase.auth.getSession()
       if (!authData.session) {
         setIsAdmin(false)
