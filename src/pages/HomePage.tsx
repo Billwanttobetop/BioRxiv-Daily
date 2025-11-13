@@ -31,7 +31,7 @@ export function HomePage() {
   const [restoredScroll, setRestoredScroll] = useState(false)
 
   const PAPERS_PER_PAGE = 50
-  const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'true') === 'true'
+  const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'false') === 'true'
 
   const fetchFavorites = useCallback(async () => {
     if (!user) return
