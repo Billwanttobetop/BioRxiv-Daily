@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
 
 function htmlToText(html: string): string {
   const withoutScripts = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -124,30 +123,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(500).json({ success: false, error: { message: '模型未返回有效JSON' } })
       return
     }
-    // 保存到 Supabase，便于后续用户直接查看
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (supabaseUrl && supabaseServiceKey) {
-      try {
-        const sb = createClient(supabaseUrl, supabaseServiceKey)
-        const row = {
-          id: crypto.randomUUID(),
-          paper_id: paperId,
-          motivation: parsed.motivation,
-          insights: parsed.insights,
-          methods: parsed.methods,
-          experiments: parsed.experiments,
-          results: parsed.results,
-          analysis_status: 'completed',
-          analyzed_at: new Date().toISOString(),
-        }
-        await sb.from('paper_deep_analysis').upsert(row, { onConflict: 'paper_id' })
-      } catch (e) {
-        // 保存失败不影响前端展示
-      }
-    }
     res.status(200).json({ success: true, data: parsed })
   } catch (e: any) {
-    res.status(500).json({ success: false, error: { message: e?.message || '未知错误' } })
+    res.status(200).json({ success: false, error: { message: e?.message || '未知错误' } })
   }
 }

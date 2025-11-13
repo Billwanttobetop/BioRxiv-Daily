@@ -110,6 +110,20 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
       if (json.success) {
         setAnalysis(json.data)
         onAnalysisComplete?.(json.data)
+        try {
+          await supabase.from('paper_deep_analysis').upsert({
+            paper_id: paperId,
+            motivation: json.data.motivation,
+            insights: json.data.insights,
+            methods: json.data.methods,
+            experiments: json.data.experiments,
+            results: json.data.results,
+            analysis_status: 'completed',
+            analyzed_at: new Date().toISOString(),
+          }, { onConflict: 'paper_id' })
+        } catch (e) {
+          // 忽略写库失败，至少前端展示
+        }
       } else {
         throw new Error(json.error?.message || '分析失败')
       }
