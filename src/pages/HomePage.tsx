@@ -117,7 +117,7 @@ export function HomePage() {
     const fallback = Array.from(counts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
+      .slice(0, 20)
     setAllTags(fallback)
   }
 
@@ -130,7 +130,7 @@ export function HomePage() {
           if (papers.length > 0) computeFallbackTagsFromPapers()
           return
         }
-        const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 10 })
+        const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
         if (error) throw error
         if (data && data.length > 0) {
           setAllTags(data)
@@ -241,6 +241,8 @@ export function HomePage() {
             await supabase.functions.invoke('analyze-paper-v2', {
               body: { paper_id: paperId }
             })
+            // 节流，避免过快调用导致限速或失败
+            await new Promise(resolve => setTimeout(resolve, 1000))
           } catch (analysisError) {
             console.error(`分析论文 ${paperId} 失败:`, analysisError)
             // 继续分析其他论文，不中断流程

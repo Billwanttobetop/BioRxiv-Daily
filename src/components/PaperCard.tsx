@@ -144,7 +144,7 @@ export function PaperCard({
         {tags && tags.length > 0 && (
           <div className="mb-3">
             <div className="flex flex-wrap gap-2">
-              {tags.map((tag, idx) => (
+              {tags.slice(0, 5).map((tag, idx) => (
                 <button
                   key={idx}
                   onClick={() => onTagClick?.(tag)}
