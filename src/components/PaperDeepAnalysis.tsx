@@ -143,76 +143,66 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
   const renderSections = () => {
     if (!analysis) return null
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>动机</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed">{analysis.motivation}</p>
-          </CardContent>
-        </Card>
+      <div className="space-y-5">
+        <section className="bg-white rounded-lg border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3">动机</h3>
+          <p className="text-[13px] sm:text-sm leading-relaxed">{analysis.motivation}</p>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>洞见</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {analysis.insights.map((item, idx) => (
-                <div key={idx} className="flex items-start space-x-2">
-                  <Badge variant="secondary" className="text-xs">{idx + 1}</Badge>
-                  <span className="text-sm leading-relaxed">{item}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <section className="bg-white rounded-lg border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3">洞见</h3>
+          <div className="space-y-2">
+            {analysis.insights.map((item, idx) => (
+              <div key={idx} className="flex items-start space-x-2">
+                <Badge variant="secondary" className="text-xs">{idx + 1}</Badge>
+                <span className="text-[13px] sm:text-sm leading-relaxed">{item}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>方法</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <section className="bg-white rounded-lg border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3">方法</h3>
+          <div className="space-y-4">
             <div>
               <h4 className="text-sm font-medium mb-1">方法概述</h4>
-              <p className="text-sm leading-relaxed">{analysis.methods.overview}</p>
+              <p className="text-[13px] sm:text-sm leading-relaxed">{analysis.methods.overview}</p>
             </div>
-            <div>
-              <h4 className="text-sm font-medium mb-1">关键技术</h4>
-              <div className="space-y-1">
-                {analysis.methods.key_techniques.map((t, i) => (
-                  <div key={i} className="flex items-start space-x-2">
-                    <div className="w-2 h-2 bg-primary rounded-full mt-1" />
-                    <span className="text-sm">{t}</span>
-                  </div>
-                ))}
+            <div className="md:grid md:grid-cols-2 md:gap-6 space-y-4 md:space-y-0">
+              <div>
+                <h4 className="text-sm font-medium mb-1">关键技术</h4>
+                <div className="space-y-1">
+                  {analysis.methods.key_techniques.map((t, i) => (
+                    <div key={i} className="flex items-start space-x-2">
+                      <div className="w-2 h-2 bg-primary rounded-full mt-1" />
+                      <span className="text-[13px] sm:text-sm">{t}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium mb-1">方法创新</h4>
+                <div className="space-y-1">
+                  {analysis.methods.innovations.map((t, i) => (
+                    <div key={i} className="flex items-start space-x-2">
+                      <Badge variant="outline" className="text-xs">创新 {i + 1}</Badge>
+                      <span className="text-[13px] sm:text-sm">{t}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <div>
-              <h4 className="text-sm font-medium mb-1">方法创新</h4>
-              <div className="space-y-1">
-                {analysis.methods.innovations.map((t, i) => (
-                  <div key={i} className="flex items-start space-x-2">
-                    <Badge variant="outline" className="text-xs">创新 {i + 1}</Badge>
-                    <span className="text-sm">{t}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>实验</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <section className="bg-white rounded-lg border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3">实验</h3>
+          <div className="space-y-4">
             <div>
               <h4 className="text-sm font-medium mb-1">实验设计</h4>
-              <p className="text-sm leading-relaxed">{analysis.experiments.design}</p>
+              <p className="text-[13px] sm:text-sm leading-relaxed">{analysis.experiments.design}</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="md:grid md:grid-cols-3 md:gap-4 space-y-3 md:space-y-0">
               <div>
                 <h4 className="text-sm font-medium mb-1">数据集</h4>
                 <div className="flex flex-wrap gap-2">
@@ -238,28 +228,26 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>结果</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <section className="bg-white rounded-lg border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3">结果</h3>
+          <div className="space-y-4">
             <div>
               <h4 className="text-sm font-medium mb-1">主要发现</h4>
               <div className="space-y-2">
                 {analysis.results.main_findings.map((f, i) => (
                   <div key={i} className="flex items-start space-x-2">
                     <Badge variant="default" className="text-xs">发现 {i + 1}</Badge>
-                    <span className="text-sm leading-relaxed">{f}</span>
+                    <span className="text-[13px] sm:text-sm leading-relaxed">{f}</span>
                   </div>
                 ))}
               </div>
             </div>
             <div>
               <h4 className="text-sm font-medium mb-1">结果意义</h4>
-              <p className="text-sm leading-relaxed">{analysis.results.significance}</p>
+              <p className="text-[13px] sm:text-sm leading-relaxed">{analysis.results.significance}</p>
             </div>
             <div>
               <h4 className="text-sm font-medium mb-1">研究局限</h4>
@@ -267,13 +255,13 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
                 {analysis.results.limitations.map((l, i) => (
                   <div key={i} className="flex items-start space-x-2">
                     <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5" />
-                    <span className="text-sm">{l}</span>
+                    <span className="text-[13px] sm:text-sm">{l}</span>
                   </div>
                 ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     )
   }
@@ -323,16 +311,7 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
 
       {/* 深度分析结果 */}
       {analysis && (
-        <Card>
-          <CardHeader>
-            <CardTitle>深度分析结果</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[600px] w-full">
-              {renderSections()}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+        <div>{renderSections()}</div>
       )}
     </div>
   )

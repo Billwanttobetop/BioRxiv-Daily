@@ -84,7 +84,7 @@ export function PaperCard({
     <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow mb-4 border border-neutral-100 relative">
       {/* 右上角机构标签 */}
       {analysis?.main_institutions && analysis.main_institutions.length > 0 && (
-        <div className="absolute top-2 right-2 z-0 sm:top-3 sm:right-3">
+        <div className="absolute top-2 right-2 z-0 sm:top-3 sm:right-3 hidden sm:block">
           <div className="flex flex-wrap gap-1 max-w-[80px] sm:max-w-[120px] justify-end">
             {institutionsExpanded 
               ? analysis.main_institutions.slice(0, 2).map((inst, idx) => (
@@ -121,7 +121,7 @@ export function PaperCard({
 
       <div className="p-6">
         {/* 标题 */}
-        <div className="mb-3 pr-16 sm:pr-80">
+        <div className="mb-3 pr-0 sm:pr-80">
           <div className="flex items-start gap-2 group">
             <a 
               href={paper.source_url} 
