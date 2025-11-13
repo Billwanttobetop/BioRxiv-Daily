@@ -64,27 +64,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，不要输出任何解释性文字或多余符号：\n` +
+  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，不要输出任何解释性文字或多余符号。写作要求：专业但易读、语句简洁、信息密度高，避免空话与重复；不要照搬摘要原句；若信息不足明确说明“信息不足”，不要臆造。结构与条目数量必须受控：\n` +
     `【文本】\n${content}\n\n` +
     `【JSON结构】\n` +
     `{
-      "motivation": "string",               // 研究动机（中文段落，至少180字）
-      "insights": ["string"],               // 核心洞见（中文要点数组，至少4-8条，每条40-80字）
+      "motivation": "string",               // 研究动机（中文段落，120-180字，聚焦1-2个核心矛盾或痛点）
+      "insights": ["string"],               // 核心洞见（中文要点数组，最多5条，每条35-60字；合并同义、避免重复）
       "methods": {
-        "overview": "string",              // 方法总体思路（中文段落，至少150字）
-        "key_techniques": ["string"],      // 关键技术（中文要点数组，至少3-6条）
-        "innovations": ["string"]          // 方法创新点（中文要点数组，至少3-6条）
+        "overview": "string",              // 方法总体思路（中文段落，120-160字；用“提出/设计/证明”等动词开头）
+        "key_techniques": ["string"],      // 关键技术（中文要点数组，最多4条；避免与创新重复）
+        "innovations": ["string"]          // 方法创新点（中文要点数组，最多3条；突出与现有方法差异）
       },
       "experiments": {
-        "design": "string",                // 实验设计（中文段落，至少150字）
-        "datasets": ["string"],            // 数据集（数组，给出名称或来源）
-        "metrics": ["string"],             // 评估指标（数组，如准确率、Kendall’s Tau等）
-        "baselines": ["string"]            // 基线方法（数组）
+        "design": "string",                // 实验设计（中文段落，100-150字；描述对象、规模、比较维度）
+        "datasets": ["string"],            // 数据集（数组，≤6项，给出名称或来源）
+        "metrics": ["string"],             // 评估指标（数组，≤5项，如准确率、Kendall’s Tau等）
+        "baselines": ["string"]            // 基线方法（数组，≤4项）
       },
       "results": {
-        "main_findings": ["string"],       // 主要发现（中文要点数组，至少3-6条）
-        "significance": "string",          // 结果意义（中文段落，至少120字）
-        "limitations": ["string"]          // 局限（中文要点数组，至少2-5条）
+        "main_findings": ["string"],       // 主要发现（中文要点数组，最多4条；优先可量化结论）
+        "significance": "string",          // 结果意义（中文段落，100-140字；指向应用或理论）
+        "limitations": ["string"]          // 局限（中文要点数组，最多3条；避免与方法描述重复）
       }
     }`
 
@@ -120,10 +120,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       parsed = m ? JSON.parse(m[0]) : null
     }
     if (!parsed) {
-      res.status(500).json({ success: false, error: { message: '模型未返回有效JSON' } })
+      res.status(200).json({ success: false, error: { message: '模型未返回有效JSON' } })
       return
     }
-    res.status(200).json({ success: true, data: parsed })
+    // 规范化与去重，限制条目数
+    const normText = (s: any) => (typeof s === 'string' ? s.trim().replace(/\s+/g, ' ') : s)
+    const normList = (arr: any[], max: number) => {
+      const seen = new Set<string>()
+      const out: string[] = []
+      for (const it of Array.isArray(arr) ? arr : []) {
+        const t = normText(it)
+        if (!t || seen.has(t)) continue
+        seen.add(t)
+        out.push(t)
+        if (out.length >= max) break
+      }
+      return out
+    }
+    const normalized = {
+      motivation: normText(parsed.motivation),
+      insights: normList(parsed.insights, 5),
+      methods: {
+        overview: normText(parsed.methods?.overview),
+        key_techniques: normList(parsed.methods?.key_techniques, 4),
+        innovations: normList(parsed.methods?.innovations, 3),
+      },
+      experiments: {
+        design: normText(parsed.experiments?.design),
+        datasets: normList(parsed.experiments?.datasets, 6),
+        metrics: normList(parsed.experiments?.metrics, 5),
+        baselines: normList(parsed.experiments?.baselines, 4),
+      },
+      results: {
+        main_findings: normList(parsed.results?.main_findings, 4),
+        significance: normText(parsed.results?.significance),
+        limitations: normList(parsed.results?.limitations, 3),
+      },
+    }
+    res.status(200).json({ success: true, data: normalized })
   } catch (e: any) {
     res.status(200).json({ success: false, error: { message: e?.message || '未知错误' } })
   }
