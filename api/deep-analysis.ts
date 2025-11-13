@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createClient } from '@supabase/supabase-js'
 
 function htmlToText(html: string): string {
   const withoutScripts = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -62,27 +63,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，且不要输出解释性文字：\n` +
+  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，不要输出任何解释性文字或多余符号：\n` +
     `【文本】\n${content}\n\n` +
     `【JSON结构】\n` +
     `{
-      "motivation": "string",               // 研究动机（中文段落）
-      "insights": ["string"],               // 核心洞见（中文要点数组，2-6条）
+      "motivation": "string",               // 研究动机（中文段落，至少180字）
+      "insights": ["string"],               // 核心洞见（中文要点数组，至少4-8条，每条40-80字）
       "methods": {
-        "overview": "string",              // 方法总体思路（中文段落）
-        "key_techniques": ["string"],      // 关键技术（中文要点数组）
-        "innovations": ["string"]          // 方法创新点（中文要点数组）
+        "overview": "string",              // 方法总体思路（中文段落，至少150字）
+        "key_techniques": ["string"],      // 关键技术（中文要点数组，至少3-6条）
+        "innovations": ["string"]          // 方法创新点（中文要点数组，至少3-6条）
       },
       "experiments": {
-        "design": "string",                // 实验设计（中文段落）
-        "datasets": ["string"],            // 数据集（数组）
-        "metrics": ["string"],             // 评估指标（数组）
+        "design": "string",                // 实验设计（中文段落，至少150字）
+        "datasets": ["string"],            // 数据集（数组，给出名称或来源）
+        "metrics": ["string"],             // 评估指标（数组，如准确率、Kendall’s Tau等）
         "baselines": ["string"]            // 基线方法（数组）
       },
       "results": {
-        "main_findings": ["string"],       // 主要发现（中文要点数组）
-        "significance": "string",          // 结果意义（中文段落）
-        "limitations": ["string"]          // 局限（中文要点数组）
+        "main_findings": ["string"],       // 主要发现（中文要点数组，至少3-6条）
+        "significance": "string",          // 结果意义（中文段落，至少120字）
+        "limitations": ["string"]          // 局限（中文要点数组，至少2-5条）
       }
     }`
 
@@ -120,6 +121,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!parsed) {
       res.status(500).json({ success: false, error: { message: '模型未返回有效JSON' } })
       return
+    }
+    // 保存到 Supabase，便于后续用户直接查看
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (supabaseUrl && supabaseServiceKey) {
+      try {
+        const sb = createClient(supabaseUrl, supabaseServiceKey)
+        const row = {
+          id: crypto.randomUUID(),
+          paper_id: paperId,
+          motivation: parsed.motivation,
+          insights: parsed.insights,
+          methods: parsed.methods,
+          experiments: parsed.experiments,
+          results: parsed.results,
+          analysis_status: 'completed',
+          analyzed_at: new Date().toISOString(),
+        }
+        await sb.from('paper_deep_analysis').upsert(row, { onConflict: 'paper_id' })
+      } catch (e) {
+        // 保存失败不影响前端展示
+      }
     }
     res.status(200).json({ success: true, data: parsed })
   } catch (e: any) {
