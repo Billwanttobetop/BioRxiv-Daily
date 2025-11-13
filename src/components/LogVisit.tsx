@@ -8,20 +8,8 @@ export function LogVisit() {
   const location = useLocation()
 
   useEffect(() => {
-    const log = async () => {
-      try {
-        await supabase.functions.invoke('log-visit', {
-          body: {
-            path: location.pathname,
-            user_id: user?.id,
-          },
-        })
-      } catch (error) {
-        console.error('Error logging visit:', error)
-      }
-    }
-
-    log()
+    const noop = async () => {}
+    noop()
   }, [location.pathname, user])
 
   return null
