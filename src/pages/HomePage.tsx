@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Masonry from 'react-masonry-css'
 import { Search, Tag as TagIcon, X, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
-import { supabase, Paper, PaperAnalysis } from '@/lib/supabase'
+import { supabase, Paper, PaperAnalysis, saveTagsForPaper } from '@/lib/supabase'
 import { PaperCard } from '@/components/PaperCard'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -191,7 +191,24 @@ export function HomePage() {
       }
 
       console.log('分析成功:', data)
-      
+      // 标签后备：基于标题+摘要提取3-5个标签并写库
+      try {
+        const target = papers.find(p => p.paper.id === paperId)?.paper
+        const resp = await fetch('/api/extract-tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: target?.title, abstract: target?.abstract })
+        })
+        if (resp.ok) {
+          const json = await resp.json()
+          if (json.success && Array.isArray(json.tags)) {
+            await saveTagsForPaper(paperId, json.tags)
+          }
+        }
+      } catch (e) {
+        console.error('后备标签提取失败', e)
+      }
+
       // 重新加载数据以显示新标签和分析
       await loadPapers({ initialLoad: true })
       await loadPopularTags()
@@ -243,6 +260,23 @@ export function HomePage() {
             })
             // 节流，避免过快调用导致限速或失败
             await new Promise(resolve => setTimeout(resolve, 1000))
+            // 标签后备
+            const target = papers.find(p => p.paper.id === paperId)?.paper
+            try {
+              const resp = await fetch('/api/extract-tags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: target?.title, abstract: target?.abstract })
+              })
+              if (resp.ok) {
+                const json = await resp.json()
+                if (json.success && Array.isArray(json.tags)) {
+                  await saveTagsForPaper(paperId, json.tags)
+                }
+              }
+            } catch (e) {
+              console.error('后备标签提取失败', e)
+            }
           } catch (analysisError) {
             console.error(`分析论文 ${paperId} 失败:`, analysisError)
             // 继续分析其他论文，不中断流程

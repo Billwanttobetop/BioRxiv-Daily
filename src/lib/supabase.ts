@@ -86,3 +86,40 @@ export interface PaperTag {
   tag_id: string
   created_at: string
 }
+
+export async function saveTagsForPaper(paperId: string, tagNames: string[]) {
+  const names = Array.from(new Set((tagNames || []).map(n => (n || '').trim()).filter(Boolean)))
+  const tagIds: string[] = []
+  for (const name of names) {
+    try {
+      const { data: existing } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('name', name)
+        .maybeSingle()
+      let tagId = existing?.id
+      if (!tagId) {
+        tagId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+        await supabase.from('tags').insert({ id: tagId, name })
+      }
+      tagIds.push(tagId)
+    } catch (e) {
+      console.error('saveTagsForPaper: tag upsert error', e)
+    }
+  }
+  for (const tagId of tagIds) {
+    try {
+      const { data: existingRel } = await supabase
+        .from('paper_tags')
+        .select('id')
+        .eq('paper_id', paperId)
+        .eq('tag_id', tagId)
+        .maybeSingle()
+      if (!existingRel) {
+        await supabase.from('paper_tags').insert({ paper_id: paperId, tag_id: tagId })
+      }
+    } catch (e) {
+      console.error('saveTagsForPaper: relation insert error', e)
+    }
+  }
+}
