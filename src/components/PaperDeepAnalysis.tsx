@@ -7,18 +7,24 @@ import { Loader2, Brain, FileText, AlertCircle, CheckCircle } from 'lucide-react
 import { supabase } from '@/lib/supabase'
 
 interface DeepAnalysis {
-  id: string
-  paper_id: string
   motivation: string
   insights: string[]
-  methods: any
-  experiments: any
-  results: any
-  technical_novelty_score: number
-  practical_impact_score: number
-  theoretical_contribution_score: number
-  confidence_score: number
-  analyzed_at: string
+  methods: {
+    overview: string
+    key_techniques: string[]
+    innovations: string[]
+  }
+  experiments: {
+    design: string
+    datasets: string[]
+    metrics: string[]
+    baselines: string[]
+  }
+  results: {
+    main_findings: string[]
+    significance: string
+    limitations: string[]
+  }
 }
 
 interface PaperAnalysis {
@@ -43,7 +49,7 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
   const [basicAnalysis, setBasicAnalysis] = useState<PaperAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
-  const [activeSection, setActiveSection] = useState<'overview' | 'insights' | 'methods' | 'experiments' | 'results'>('overview')
+  // 展示采用分块卡片，无需切换标签
   const [error, setError] = useState<string | null>(null)
 
   // 检查是否已有基础翻译
@@ -120,204 +126,142 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
     checkDeepAnalysis()
   }, [paperId])
 
-  const renderScore = (score: number, label: string) => (
-    <div className="flex flex-col items-center space-y-1">
-      <div className="text-2xl font-bold text-primary">{score.toFixed(1)}</div>
-      <div className="text-xs text-muted-foreground text-center">{label}</div>
-    </div>
-  )
-
-  const renderSection = () => {
+  const renderSections = () => {
     if (!analysis) return null
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>动机</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed">{analysis.motivation}</p>
+          </CardContent>
+        </Card>
 
-    switch (activeSection) {
-      case 'overview':
-        return (
-          <div className="space-y-6">
-            {/* 评分概览 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {renderScore(analysis.technical_novelty_score, '技术新颖性')}
-              {renderScore(analysis.practical_impact_score, '实际影响')}
-              {renderScore(analysis.theoretical_contribution_score, '理论贡献')}
-              {renderScore(analysis.confidence_score, '分析置信度')}
+        <Card>
+          <CardHeader>
+            <CardTitle>洞见</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {analysis.insights.map((item, idx) => (
+                <div key={idx} className="flex items-start space-x-2">
+                  <Badge variant="secondary" className="text-xs">{idx + 1}</Badge>
+                  <span className="text-sm leading-relaxed">{item}</span>
+                </div>
+              ))}
             </div>
+          </CardContent>
+        </Card>
 
-            {/* 研究动机 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>方法</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center">
-                <FileText className="w-5 h-5 mr-2" />
-                研究动机
-              </h3>
-              <div className="bg-muted p-4 rounded-lg">
-                <p className="text-sm leading-relaxed">{analysis.motivation}</p>
-              </div>
-            </div>
-
-            {/* 核心洞见 */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center">
-                <Brain className="w-5 h-5 mr-2" />
-                核心洞见
-              </h3>
-              <div className="space-y-3">
-                {analysis.insights.map((insight, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <Badge variant="secondary" className="mt-1">{index + 1}</Badge>
-                    <p className="text-sm leading-relaxed">{insight}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'insights':
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">深度洞见分析</h3>
-            {analysis.insights.map((insight, index) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <Badge variant="outline" className="text-primary">洞见 {index + 1}</Badge>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm leading-relaxed">{insight}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )
-
-      case 'methods':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-3">方法概述</h3>
+              <h4 className="text-sm font-medium mb-1">方法概述</h4>
               <p className="text-sm leading-relaxed">{analysis.methods.overview}</p>
             </div>
-
             <div>
-              <h4 className="text-md font-medium mb-2">关键技术</h4>
-              <div className="grid gap-2">
-                {analysis.methods.key_techniques.map((technique, index) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <div className="w-2 h-2 bg-primary rounded-full mt-2" />
-                    <span className="text-sm">{technique}</span>
+              <h4 className="text-sm font-medium mb-1">关键技术</h4>
+              <div className="space-y-1">
+                {analysis.methods.key_techniques.map((t, i) => (
+                  <div key={i} className="flex items-start space-x-2">
+                    <div className="w-2 h-2 bg-primary rounded-full mt-1" />
+                    <span className="text-sm">{t}</span>
                   </div>
                 ))}
               </div>
             </div>
-
             <div>
-              <h4 className="text-md font-medium mb-2">方法创新</h4>
-              <div className="grid gap-2">
-                {analysis.methods.innovations.map((innovation, index) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <Badge variant="secondary" className="text-xs">创新 {index + 1}</Badge>
-                    <span className="text-sm">{innovation}</span>
+              <h4 className="text-sm font-medium mb-1">方法创新</h4>
+              <div className="space-y-1">
+                {analysis.methods.innovations.map((t, i) => (
+                  <div key={i} className="flex items-start space-x-2">
+                    <Badge variant="outline" className="text-xs">创新 {i + 1}</Badge>
+                    <span className="text-sm">{t}</span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        )
+          </CardContent>
+        </Card>
 
-      case 'experiments':
-        return (
-          <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>实验</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold mb-3">实验设计</h3>
+              <h4 className="text-sm font-medium mb-1">实验设计</h4>
               <p className="text-sm leading-relaxed">{analysis.experiments.design}</p>
             </div>
-
             <div className="grid md:grid-cols-3 gap-4">
               <div>
-                <h4 className="text-md font-medium mb-2">数据集</h4>
-                <div className="space-y-1">
-                  {analysis.experiments.datasets.map((dataset, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">{dataset}</Badge>
+                <h4 className="text-sm font-medium mb-1">数据集</h4>
+                <div className="flex flex-wrap gap-2">
+                  {analysis.experiments.datasets.map((d, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">{d}</Badge>
                   ))}
                 </div>
               </div>
-
               <div>
-                <h4 className="text-md font-medium mb-2">评估指标</h4>
-                <div className="space-y-1">
-                  {analysis.experiments.metrics.map((metric, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">{metric}</Badge>
+                <h4 className="text-sm font-medium mb-1">评估指标</h4>
+                <div className="flex flex-wrap gap-2">
+                  {analysis.experiments.metrics.map((m, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">{m}</Badge>
                   ))}
                 </div>
               </div>
-
               <div>
-                <h4 className="text-md font-medium mb-2">基线方法</h4>
-                <div className="space-y-1">
-                  {analysis.experiments.baselines.map((baseline, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">{baseline}</Badge>
+                <h4 className="text-sm font-medium mb-1">基线方法</h4>
+                <div className="flex flex-wrap gap-2">
+                  {analysis.experiments.baselines.map((b, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">{b}</Badge>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
-        )
+          </CardContent>
+        </Card>
 
-      case 'results':
-        return (
-          <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>结果</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold mb-3">主要发现</h3>
-              <div className="space-y-3">
-                {analysis.results.main_findings.map((finding, index) => (
-                  <Card key={index}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-start space-x-3">
-                        <Badge variant="default" className="text-xs">发现 {index + 1}</Badge>
-                        <p className="text-sm leading-relaxed">{finding}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-md font-medium mb-2">性能提升</h4>
+              <h4 className="text-sm font-medium mb-1">主要发现</h4>
               <div className="space-y-2">
-                {analysis.results.performance_gains.map((gain, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <span className="text-sm">{gain}</span>
+                {analysis.results.main_findings.map((f, i) => (
+                  <div key={i} className="flex items-start space-x-2">
+                    <Badge variant="default" className="text-xs">发现 {i + 1}</Badge>
+                    <span className="text-sm leading-relaxed">{f}</span>
                   </div>
                 ))}
               </div>
             </div>
-
             <div>
-              <h4 className="text-md font-medium mb-2">结果意义</h4>
+              <h4 className="text-sm font-medium mb-1">结果意义</h4>
               <p className="text-sm leading-relaxed">{analysis.results.significance}</p>
             </div>
-
             <div>
-              <h4 className="text-md font-medium mb-2">研究局限</h4>
+              <h4 className="text-sm font-medium mb-1">研究局限</h4>
               <div className="space-y-2">
-                {analysis.results.limitations.map((limitation, index) => (
-                  <div key={index} className="flex items-start space-x-2">
+                {analysis.results.limitations.map((l, i) => (
+                  <div key={i} className="flex items-start space-x-2">
                     <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5" />
-                    <span className="text-sm">{limitation}</span>
+                    <span className="text-sm">{l}</span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        )
-
-      default:
-        return null
-    }
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -332,29 +276,7 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
         </CardHeader>
         <CardContent>
           {analysis ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                深度分析已完成，点击下方标签查看结果
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { key: 'overview', label: '概览' },
-                  { key: 'insights', label: '洞见' },
-                  { key: 'methods', label: '方法' },
-                  { key: 'experiments', label: '实验' },
-                  { key: 'results', label: '结果' }
-                ].map(({ key, label }) => (
-                  <Button
-                    key={key}
-                    variant={activeSection === key ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveSection(key as any)}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            <div className="text-sm text-muted-foreground">深度分析已完成</div>
           ) : (
             <div className="space-y-4">
               <Button
@@ -393,7 +315,7 @@ export function PaperDeepAnalysis({ paperId, title, abstract, sourceUrl, pdfUrl,
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[600px] w-full">
-              {renderSection()}
+              {renderSections()}
             </ScrollArea>
           </CardContent>
         </Card>

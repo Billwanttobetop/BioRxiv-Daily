@@ -62,20 +62,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const prompt = `请基于以下论文全文或摘要进行深度学术分析，并用JSON严格输出：\n` +
+  const prompt = `请用中文对下方论文文本进行深度分析，严格以JSON输出，且不要输出解释性文字：\n` +
     `【文本】\n${content}\n\n` +
-    `【输出要求】\n` +
+    `【JSON结构】\n` +
     `{
-      "motivation": "string",
-      "insights": ["string", "string"],
-      "methods": {"overview":"string","key_techniques":["string"],"innovations":["string"]},
-      "experiments": {"design":"string","datasets":["string"],"metrics":["string"],"baselines":["string"]},
-      "results": {"main_findings":["string"],"performance_gains":["string"],"significance":"string","limitations":["string"]},
-      "technical_novelty_score": 0-10,
-      "practical_impact_score": 0-10,
-      "theoretical_contribution_score": 0-10,
-      "confidence_score": 0-10,
-      "analyzed_at": "YYYY-MM-DD HH:mm:ss"
+      "motivation": "string",               // 研究动机（中文段落）
+      "insights": ["string"],               // 核心洞见（中文要点数组，2-6条）
+      "methods": {
+        "overview": "string",              // 方法总体思路（中文段落）
+        "key_techniques": ["string"],      // 关键技术（中文要点数组）
+        "innovations": ["string"]          // 方法创新点（中文要点数组）
+      },
+      "experiments": {
+        "design": "string",                // 实验设计（中文段落）
+        "datasets": ["string"],            // 数据集（数组）
+        "metrics": ["string"],             // 评估指标（数组）
+        "baselines": ["string"]            // 基线方法（数组）
+      },
+      "results": {
+        "main_findings": ["string"],       // 主要发现（中文要点数组）
+        "significance": "string",          // 结果意义（中文段落）
+        "limitations": ["string"]          // 局限（中文要点数组）
+      }
     }`
 
   try {
@@ -88,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是资深学术分析助手。只输出严格JSON。' },
+          { role: 'system', content: '你是资深学术分析助手。所有输出需为中文，且只输出严格JSON。' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.2
@@ -118,4 +126,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).json({ success: false, error: { message: e?.message || '未知错误' } })
   }
 }
-
