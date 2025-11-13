@@ -26,6 +26,8 @@ export function HomePage() {
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [initialized, setInitialized] = useState(false)
+  const tagsDebounceRef = { current: 0 as any }
 
   const PAPERS_PER_PAGE = 50
   const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'true') === 'true'
@@ -120,26 +122,38 @@ export function HomePage() {
 
   const loadPopularTags = useCallback(async () => {
     try {
-      if (DISABLE_TAGS_RPC) {
-        if (papers.length > 0) computeFallbackTagsFromPapers()
-        return
-      }
-      const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 10 })
-      if (error) throw error
-      if (data && data.length > 0) {
-        setAllTags(data)
-      } else if (papers.length > 0) {
-        computeFallbackTagsFromPapers()
-      }
+      // 防抖，避免短时间内重复计算
+      clearTimeout(tagsDebounceRef.current)
+      tagsDebounceRef.current = setTimeout(async () => {
+        if (DISABLE_TAGS_RPC) {
+          if (papers.length > 0) computeFallbackTagsFromPapers()
+          return
+        }
+        const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 10 })
+        if (error) throw error
+        if (data && data.length > 0) {
+          setAllTags(data)
+        } else if (papers.length > 0) {
+          computeFallbackTagsFromPapers()
+        }
+      }, 300)
     } catch (error) {
       // 安静回退
       if (papers.length > 0) computeFallbackTagsFromPapers()
     }
   }, [papers])
 
+  // 首屏仅加载一次，避免因用户状态变化导致全页重载
   useEffect(() => {
-    loadPapers({ initialLoad: true })
-    loadPopularTags()
+    if (!initialized) {
+      setInitialized(true)
+      loadPapers({ initialLoad: true })
+      loadPopularTags()
+    }
+  }, [initialized])
+
+  // 仅在用户变化时刷新收藏，不触发全页“加载中”
+  useEffect(() => {
     if (user) fetchFavorites()
   }, [user])
 
@@ -314,7 +328,16 @@ export function HomePage() {
       month: 'numeric', 
       day: 'numeric' 
     })
-    setExpandedDates(new Set([today]))
+    // 保持用户之前的展开状态，若无则默认今天
+    const saved = localStorage.getItem('expandedDates')
+    if (saved) {
+      try {
+        const arr: string[] = JSON.parse(saved)
+        setExpandedDates(new Set(arr))
+      } catch {}
+    } else {
+      setExpandedDates(new Set([today]))
+    }
   }, [])
 
   const toggleDateExpansion = (date: string) => {
@@ -325,6 +348,7 @@ export function HomePage() {
       newExpanded.add(date)
     }
     setExpandedDates(newExpanded)
+    localStorage.setItem('expandedDates', JSON.stringify(Array.from(newExpanded)))
   }
 
   const expandAllDates = () => {
