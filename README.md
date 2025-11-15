@@ -37,7 +37,8 @@
 - 欢迎加入我们的微信群，交流学术进展与产品建议。
 
 
-<img width="200" height="260" alt="image" src="https://github.com/user-attachments/assets/987ea0a4-3b86-4713-96fc-03d5ce223a87" />
+![034fe5e3ce680b3e8a2c3dde2fffe852](https://github.com/user-attachments/assets/c7def9a0-ed07-49fb-9be9-0ca22dd61a21)
+
 
 
 ## 贡献指南（仅前端）
