@@ -83,12 +83,12 @@ export function PaperCard({
   return (
     <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow mb-4 border border-neutral-100 relative">
       {/* 右上角机构标签 */}
-      {analysis?.main_institutions && analysis.main_institutions.length > 0 && (
+      {(import.meta.env.VITE_SHOW_INSTITUTIONS === 'true') && analysis?.main_institutions && analysis.main_institutions.length > 0 && (
         <div className="absolute top-2 right-2 z-0 sm:top-3 sm:right-3 hidden sm:block">
           <div className="flex flex-wrap gap-1 max-w-[80px] sm:max-w-[120px] justify-end">
             {institutionsExpanded 
               ? analysis.main_institutions.slice(0, 2).map((inst, idx) => (
-                  <span 
+                <span 
                     key={idx}
                     className="text-[9px] sm:text-[10px] px-1 py-0.5 bg-orange-100 text-orange-700 rounded-full border border-orange-200 text-right"
                     title={inst}
