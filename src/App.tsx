@@ -10,6 +10,7 @@ import { AdminPage } from '@/pages/AdminPage'
 import { PaperDetailPage } from '@/pages/PaperDetailPage'
 import { AdminLoginPage } from '@/pages/AdminLoginPage'
 import { AdminDashboardPage } from '@/pages/AdminDashboardPage'
+import AdminConsole from '@/pages/AdminConsole'
 import { LogVisit } from '@/components/LogVisit'
 import { Insights } from '@/components/Insights'
 
@@ -27,6 +28,7 @@ function App() {
 
             <Route path="/admin" element={<><Navbar /><div className="flex-1"><AdminPage /></div><Footer /></>} />
             <Route path="/paper/:id" element={<><Navbar /><div className="flex-1"><PaperDetailPage /></div><Footer /></>} />
+            <Route path="/console" element={<AdminConsole />} />
             
             {/* Admin routes without navbar and footer */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
