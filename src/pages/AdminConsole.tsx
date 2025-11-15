@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 export default function AdminConsole() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'))
@@ -7,6 +8,9 @@ export default function AdminConsole() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [contact, setContact] = useState('')
+  const [queue, setQueue] = useState<{ id: string; title: string }[]>([])
+  const [progress, setProgress] = useState({ total: 0, done: 0, ok: 0, err: 0 })
+  const [running, setRunning] = useState(false)
 
   const login = async () => {
     setBusy(true)
@@ -32,27 +36,32 @@ export default function AdminConsole() {
   }
 
   const batchAnalyze = async () => {
-    if (!token) return
-    setBusy(true)
-    setMessage('正在批量分析...')
-    try {
-      const resp = await fetch('/api/admin-batch-analyze', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, limit: Number(limit) || 200, interval_ms: Number(interval) || 500, only_new })
-      })
-      const text = await resp.text()
-      const json = (() => { try { return JSON.parse(text) } catch { return { success: false, error: { message: text } } } })()
-      if (json.success) {
-        setMessage(`批量分析完成：总数 ${json.total}`)
-        setResults(json.results || [])
-      } else {
-        setMessage(json.error?.message || '批量分析失败')
-      }
-    } catch (e: any) {
-      setMessage(e?.message || '批量分析失败')
-    } finally {
-      setBusy(false)
+    // 前端队列逐篇执行，避免后端 FUNCTION_INVOCATION_FAILED
+    setMessage(null)
+    if (queue.length === 0) {
+      setMessage('请先“识别待翻译”')
+      return
     }
+    setRunning(true)
+    setProgress({ total: queue.length, done: 0, ok: 0, err: 0 })
+    const iv = Math.max(100, Math.min(5000, Number(interval) || 500))
+    const resultsLocal: { id: string; ok: boolean; error?: string }[] = []
+    for (let i = 0; i < queue.length; i++) {
+      const id = queue[i].id
+      try {
+        const { error } = await supabase.functions.invoke('analyze-paper-v2', { body: { paper_id: id } })
+        if (error) throw error
+        resultsLocal.push({ id, ok: true })
+        setProgress(p => ({ ...p, done: p.done + 1, ok: p.ok + 1 }))
+      } catch (e: any) {
+        resultsLocal.push({ id, ok: false, error: e?.message || '调用失败' })
+        setProgress(p => ({ ...p, done: p.done + 1, err: p.err + 1 }))
+      }
+      await new Promise(r => setTimeout(r, iv))
+    }
+    setResults(resultsLocal)
+    setRunning(false)
+    setMessage('批量分析完成')
   }
 
   const updateContact = async () => {
@@ -93,6 +102,46 @@ export default function AdminConsole() {
   }
   if (!currentContactLoaded) loadCurrentContact()
 
+  // 识别待翻译：读取 papers 与 paper_analysis，筛选未分析
+  const identifyQueue = async () => {
+    setBusy(true)
+    setMessage('正在识别待翻译论文...')
+    try {
+      const { data: papers } = await supabase
+        .from('papers')
+        .select('id,title,created_at')
+        .order('created_at', { ascending: false })
+        .limit(Number(limit) || 200)
+      const { data: analyzed } = await supabase
+        .from('paper_analysis')
+        .select('paper_id')
+      const analyzedSet = new Set((analyzed || []).map(r => r.paper_id))
+      const list = (papers || [])
+        .filter(p => (only_new ? !analyzedSet.has(p.id) : true))
+        .map(p => ({ id: p.id, title: p.title }))
+      setQueue(list)
+      setProgress({ total: list.length, done: 0, ok: 0, err: 0 })
+      setMessage(`识别到 ${list.length} 篇待翻译`)
+    } catch (e: any) {
+      setMessage(e?.message || '识别失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const fetchLatestPapers = async () => {
+    setBusy(true)
+    setMessage('正在抓取最新论文...')
+    try {
+      const { error } = await supabase.functions.invoke('fetch-biorxiv-papers')
+      if (error) throw error
+      setMessage('抓取完成，正在识别待翻译...')
+      await identifyQueue()
+    } catch (e: any) {
+      setMessage(e?.message || '抓取失败')
+    } finally { setBusy(false) }
+  }
+
   if (!token) {
     return (
       <div className="max-w-md mx-auto p-6">
@@ -127,7 +176,19 @@ export default function AdminConsole() {
               <input type="checkbox" checked={only_new} onChange={e => setOnlyNew(e.target.checked)} />
             </div>
           </div>
-          <button className="bg-amber-500 text-white rounded px-4 py-2 disabled:opacity-50" onClick={batchAnalyze} disabled={busy}>开始批量翻译</button>
+          <div className="flex gap-2">
+            <button className="bg-neutral-800 text-white rounded px-4 py-2 disabled:opacity-50" onClick={identifyQueue} disabled={busy}>识别待翻译</button>
+            <button className="bg-amber-500 text-white rounded px-4 py-2 disabled:opacity-50" onClick={batchAnalyze} disabled={busy || running || queue.length===0}>开始批量翻译</button>
+            <button className="bg-neutral-100 text-neutral-700 rounded px-4 py-2 disabled:opacity-50" onClick={fetchLatestPapers} disabled={busy}>获取最新论文</button>
+          </div>
+          {progress.total > 0 && (
+            <div className="mt-2">
+              <div className="h-2 bg-neutral-200 rounded">
+                <div className="h-2 bg-amber-500 rounded" style={{ width: `${Math.round((progress.done/progress.total)*100)}%` }}></div>
+              </div>
+              <div className="text-xs text-neutral-600 mt-1">{progress.done}/{progress.total} · 成功 {progress.ok} · 失败 {progress.err}</div>
+            </div>
+          )}
           {results.length > 0 && (
             <div className="mt-3 text-xs">
               {results.slice(0, 10).map(r => (
