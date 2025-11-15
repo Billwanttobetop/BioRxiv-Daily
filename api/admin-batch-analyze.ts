@@ -6,7 +6,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(405).send('Method Not Allowed')
     return
   }
-  const { token } = req.body || {}
+  const { token, limit = 200, interval_ms = 500, only_new = true } = req.body || {}
   if (!token) {
     res.status(200).json({ success: false, error: { message: 'Unauthorized' } })
     return
@@ -30,14 +30,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('papers')
       .select('id, title, abstract')
       .order('created_at', { ascending: false })
-      .limit(200)
+      .limit(Math.max(1, Math.min(1000, Number(limit) || 200)))
 
     const { data: analyzed } = await sb
       .from('paper_analysis')
       .select('paper_id')
 
     const analyzedSet = new Set((analyzed || []).map(r => r.paper_id))
-    const toAnalyze = (papers || []).filter(p => !analyzedSet.has(p.id))
+    const toAnalyze = (papers || []).filter(p => (only_new ? !analyzedSet.has(p.id) : true))
 
     const results: { id: string; ok: boolean; error?: string }[] = []
     for (const p of toAnalyze) {
@@ -49,8 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           body: JSON.stringify({ paper_id: p.id })
         })
         const ok = resp.ok
-        results.push({ id: p.id, ok, error: ok ? undefined : await resp.text() })
-        await new Promise(r => setTimeout(r, 500))
+        results.push({ id: p.id, ok, error: ok ? undefined : (await resp.text()) })
+        await new Promise(r => setTimeout(r, Math.max(100, Math.min(5000, Number(interval_ms) || 500))))
       } catch (e: any) {
         results.push({ id: p.id, ok: false, error: e?.message })
       }
