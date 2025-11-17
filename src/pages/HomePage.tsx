@@ -72,13 +72,17 @@ export function HomePage() {
       }
 
       const paperIds = papersData?.map(p => p.id) || []
-      const [{ data: analysisData }, { data: paperTagsData }, { data: tagsData }] = await Promise.all([
+      const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
         supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
         supabase.from('paper_tags').select('*').in('paper_id', paperIds),
-        supabase.from('tags').select('id, name').in('id', [...new Set((await supabase.from('paper_tags').select('tag_id').in('paper_id', paperIds)).data?.map(pt => pt.tag_id) || [])]),
       ])
 
-      const tagIdToName = new Map<string, string>(tagsData?.map(tag => [tag.id, tag.name]))
+      const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
+      const { data: tagsData } = tagIds.length > 0
+        ? await supabase.from('tags').select('id, name').in('id', tagIds)
+        : { data: [] as { id: string; name: string }[] }
+
+      const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
       const paperTagsMap = new Map<string, string[]>()
       paperTagsData?.forEach(pt => {
         const paperId = pt.paper_id
