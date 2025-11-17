@@ -36,14 +36,16 @@ export function PaperCard({
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/paper/${paper.id}`
+    const titleText = analysis?.title_cn || paper.title
+    const shareText = `【${titleText}】 ${shareUrl}`
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      await navigator.clipboard.writeText(shareText)
       setShareSuccess(true)
       setTimeout(() => setShareSuccess(false), 2000)
     } catch (err) {
       // 如果复制失败，使用fallback
       const input = document.createElement('input')
-      input.value = shareUrl
+      input.value = shareText
       document.body.appendChild(input)
       input.select()
       document.execCommand('copy')
