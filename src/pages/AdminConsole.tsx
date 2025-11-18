@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, saveTagsForPaper } from '@/lib/supabase'
 
 export default function AdminConsole() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'))
@@ -8,7 +8,7 @@ export default function AdminConsole() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [contact, setContact] = useState('')
-  const [queue, setQueue] = useState<{ id: string; title: string }[]>([])
+  const [queue, setQueue] = useState<{ id: string; title: string; abstract?: string | null }[]>([])
   const [progress, setProgress] = useState({ total: 0, done: 0, ok: 0, err: 0 })
   const [running, setRunning] = useState(false)
 
@@ -47,13 +47,35 @@ export default function AdminConsole() {
     const iv = Math.max(100, Math.min(5000, Number(interval) || 500))
     const resultsLocal: { id: string; ok: boolean; error?: string }[] = []
     for (let i = 0; i < queue.length; i++) {
-      const id = queue[i].id
+      const { id, title, abstract } = queue[i]
       try {
         const { error } = await supabase.functions.invoke('analyze-paper-v2', { body: { paper_id: id } })
         if (error) throw error
+        // 后备：提取标签并写库，确保卡片标签可用
+        try {
+          const resp = await fetch('/api/extract-tags', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, abstract })
+          })
+          const json = await resp.json()
+          if (json.success && Array.isArray(json.tags)) {
+            await saveTagsForPaper(id, json.tags)
+          }
+        } catch {}
         resultsLocal.push({ id, ok: true })
         setProgress(p => ({ ...p, done: p.done + 1, ok: p.ok + 1 }))
       } catch (e: any) {
+        // 即使分析失败，也尝试标签后备以保证最少标签可用
+        try {
+          const resp = await fetch('/api/extract-tags', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, abstract })
+          })
+          const json = await resp.json()
+          if (json.success && Array.isArray(json.tags)) {
+            await saveTagsForPaper(id, json.tags)
+          }
+        } catch {}
         resultsLocal.push({ id, ok: false, error: e?.message || '调用失败' })
         setProgress(p => ({ ...p, done: p.done + 1, err: p.err + 1 }))
       }
@@ -109,7 +131,7 @@ export default function AdminConsole() {
     try {
       const { data: papers } = await supabase
         .from('papers')
-        .select('id,title,created_at')
+        .select('id,title,abstract,created_at')
         .order('created_at', { ascending: false })
         .limit(Number(limit) || 200)
       const { data: analyzed } = await supabase
@@ -118,7 +140,7 @@ export default function AdminConsole() {
       const analyzedSet = new Set((analyzed || []).map(r => r.paper_id))
       const list = (papers || [])
         .filter(p => (only_new ? !analyzedSet.has(p.id) : true))
-        .map(p => ({ id: p.id, title: p.title }))
+        .map(p => ({ id: p.id, title: p.title, abstract: p.abstract }))
       setQueue(list)
       setProgress({ total: list.length, done: 0, ok: 0, err: 0 })
       setMessage(`识别到 ${list.length} 篇待翻译`)
