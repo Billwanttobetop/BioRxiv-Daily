@@ -128,13 +128,22 @@ export function HomePage() {
 
   async function computeGlobalPopularTags() {
     try {
-      const { data: ptAll, error: ptErr } = await supabase
-        .from('paper_tags')
-        .select('tag_id')
-        .limit(100000);
-      if (ptErr) throw ptErr
-      const countsById = new Map() as Map<string, number>
-      (ptAll as { tag_id: string }[] | null || []).forEach(r => countsById.set(r.tag_id, (countsById.get(r.tag_id) || 0) + 1))
+      // 分页拉取全库 paper_tags，避免单次查询上限
+      const pageSize = 1000
+      let offset = 0
+      const countsById = new Map<string, number>()
+      while (true) {
+        const { data: chunk, error: ptErr } = await supabase
+          .from('paper_tags')
+          .select('tag_id')
+          .range(offset, offset + pageSize - 1)
+        if (ptErr) throw ptErr
+        const list = (chunk as { tag_id: string }[] | null) || []
+        if (list.length === 0) break
+        list.forEach(r => countsById.set(r.tag_id, (countsById.get(r.tag_id) || 0) + 1))
+        if (list.length < pageSize) break
+        offset += pageSize
+      }
       const tagIds: string[] = Array.from(countsById.keys())
       const { data: tagsData, error: tErr } = await supabase
         .from('tags')
