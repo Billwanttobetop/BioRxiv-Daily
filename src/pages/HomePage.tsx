@@ -173,16 +173,18 @@ export function HomePage() {
       // 防抖，避免短时间内重复计算
       clearTimeout(tagsDebounceRef.current)
       tagsDebounceRef.current = setTimeout(async () => {
-        if (DISABLE_TAGS_RPC) {
-          await computeGlobalPopularTags()
-          return
-        }
-        const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
-        if (error) throw error
-        if (data && data.length > 0) {
-          setAllTags(data)
-        } else {
-          await computeGlobalPopularTags()
+        // 始终优先显示全库累积，避免初始为空或RPC返回异常
+        await computeGlobalPopularTags()
+        if (!DISABLE_TAGS_RPC) {
+          try {
+            const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
+            if (error) throw error
+            if (data && data.length > 0) {
+              const maxCount = Math.max(...data.map((x: any) => x.count || 0))
+              // 仅当RPC统计明显优于本地聚合时覆盖，否则保持全库结果
+              if (maxCount > 1) setAllTags(data)
+            }
+          } catch {}
         }
       }, 300)
     } catch (error) {
@@ -196,7 +198,11 @@ export function HomePage() {
     if (!initialized) {
       setInitialized(true)
       loadPapers({ initialLoad: true })
-      loadPopularTags()
+      // 立即计算热门标签，避免用户未展开时为空
+      ;(async () => {
+        await computeGlobalPopularTags()
+        await loadPopularTags()
+      })()
       // 全库总数
       ;(async () => {
         const { count } = await supabase
