@@ -130,18 +130,18 @@ export function HomePage() {
       const { data: ptAll, error: ptErr } = await supabase
         .from('paper_tags')
         .select('tag_id')
-        .limit(100000)
+        .limit(100000);
       if (ptErr) throw ptErr
-      const counts = new Map<string, number>()
-      (ptAll || []).forEach(r => counts.set(r.tag_id, (counts.get(r.tag_id) || 0) + 1))
-      const tagIds = Array.from(counts.keys())
+      const countsMap = new Map() as Map<string, number>
+      (ptAll as { tag_id: string }[] | null || []).forEach(r => countsMap.set(r.tag_id, (countsMap.get(r.tag_id) || 0) + 1))
+      const tagIds: string[] = Array.from(countsMap.keys())
       const { data: tagsData, error: tErr } = await supabase
         .from('tags')
         .select('id,name')
-        .in('id', tagIds)
+        .in('id', tagIds as readonly string[])
       if (tErr) throw tErr
-      const idToName = new Map<string, string>((tagsData || []).map(t => [t.id, t.name]))
-      const aggregated = Array.from(counts.entries())
+      const idToName = new Map<string, string>((tagsData || []).map((t: { id: string; name: string }) => [t.id, t.name]))
+      const aggregated = Array.from(countsMap.entries())
         .map(([id, count]) => ({ name: idToName.get(id) || id, count }))
         .filter(x => !!x.name)
         .sort((a, b) => b.count - a.count)
