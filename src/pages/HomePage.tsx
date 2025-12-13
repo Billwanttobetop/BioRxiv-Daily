@@ -125,26 +125,54 @@ export function HomePage() {
     setAllTags(fallback)
   }
 
+  async function computeGlobalPopularTags() {
+    try {
+      const { data: ptAll, error: ptErr } = await supabase
+        .from('paper_tags')
+        .select('tag_id')
+        .limit(100000)
+      if (ptErr) throw ptErr
+      const counts = new Map<string, number>()
+      (ptAll || []).forEach(r => counts.set(r.tag_id, (counts.get(r.tag_id) || 0) + 1))
+      const tagIds = Array.from(counts.keys())
+      const { data: tagsData, error: tErr } = await supabase
+        .from('tags')
+        .select('id,name')
+        .in('id', tagIds)
+      if (tErr) throw tErr
+      const idToName = new Map<string, string>((tagsData || []).map(t => [t.id, t.name]))
+      const aggregated = Array.from(counts.entries())
+        .map(([id, count]) => ({ name: idToName.get(id) || id, count }))
+        .filter(x => !!x.name)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20)
+      setAllTags(aggregated)
+    } catch (e) {
+      // 退回到当前已加载列表统计
+      computeFallbackTagsFromPapers()
+    }
+  }
+
   const loadPopularTags = useCallback(async () => {
     try {
       // 防抖，避免短时间内重复计算
       clearTimeout(tagsDebounceRef.current)
       tagsDebounceRef.current = setTimeout(async () => {
         if (DISABLE_TAGS_RPC) {
-          if (papers.length > 0) computeFallbackTagsFromPapers()
+          await computeGlobalPopularTags()
           return
         }
         const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
         if (error) throw error
         if (data && data.length > 0) {
           setAllTags(data)
-        } else if (papers.length > 0) {
-          computeFallbackTagsFromPapers()
+        } else {
+          await computeGlobalPopularTags()
         }
       }, 300)
     } catch (error) {
-      // 安静回退
-      if (papers.length > 0) computeFallbackTagsFromPapers()
+      // 安静回退到全库统计
+      computeGlobalPopularTags()
     }
   }, [papers])
 
@@ -235,9 +263,9 @@ export function HomePage() {
       const timestamp = Date.now();
       const { data, error } = await supabase.functions.invoke('fetch-biorxiv-papers', {
         body: { 
-          limit: 20,
+          limit: 500,
           timestamp: timestamp,
-          pages: 3 // 请求3页内容以获取更多论文
+          pages: 20
         }
       })
 
