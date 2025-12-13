@@ -29,6 +29,7 @@ export function HomePage() {
   const [initialized, setInitialized] = useState(false)
   const tagsDebounceRef = { current: 0 as any }
   const [restoredScroll, setRestoredScroll] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
 
   const PAPERS_PER_PAGE = 50
   const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'false') === 'true'
@@ -132,18 +133,23 @@ export function HomePage() {
         .select('tag_id')
         .limit(100000);
       if (ptErr) throw ptErr
-      const countsMap = new Map() as Map<string, number>
-      (ptAll as { tag_id: string }[] | null || []).forEach(r => countsMap.set(r.tag_id, (countsMap.get(r.tag_id) || 0) + 1))
-      const tagIds: string[] = Array.from(countsMap.keys())
+      const countsById = new Map() as Map<string, number>
+      (ptAll as { tag_id: string }[] | null || []).forEach(r => countsById.set(r.tag_id, (countsById.get(r.tag_id) || 0) + 1))
+      const tagIds: string[] = Array.from(countsById.keys())
       const { data: tagsData, error: tErr } = await supabase
         .from('tags')
         .select('id,name')
         .in('id', tagIds as readonly string[])
       if (tErr) throw tErr
       const idToName = new Map<string, string>((tagsData || []).map((t: { id: string; name: string }) => [t.id, t.name]))
-      const aggregated = Array.from(countsMap.entries())
-        .map(([id, count]) => ({ name: idToName.get(id) || id, count }))
-        .filter(x => !!x.name)
+      const nameCounts = new Map<string, number>()
+      countsById.forEach((count, id) => {
+        const name = idToName.get(id)
+        if (!name) return
+        nameCounts.set(name, (nameCounts.get(name) || 0) + count)
+      })
+      const aggregated = Array.from(nameCounts.entries())
+        .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 20)
       setAllTags(aggregated)
@@ -182,6 +188,13 @@ export function HomePage() {
       setInitialized(true)
       loadPapers({ initialLoad: true })
       loadPopularTags()
+      // 全库总数
+      ;(async () => {
+        const { count } = await supabase
+          .from('papers')
+          .select('*', { count: 'exact', head: true })
+        setTotalCount(count || 0)
+      })()
     }
   }, [initialized])
 
@@ -575,7 +588,7 @@ export function HomePage() {
             </div>
             <div>
               <p className="text-sm sm:text-base text-neutral-600">
-                共 {filteredPapers.length} 篇文献
+                共 {totalCount} 篇文献
                 {selectedTag && <span className="ml-2 text-blue-600">（标签: {selectedTag}）</span>}
               </p>
             </div>
