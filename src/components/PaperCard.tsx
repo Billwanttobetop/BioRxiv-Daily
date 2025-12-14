@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Heart, ExternalLink, ChevronDown, ChevronUp, Share2, Tag as TagIcon } from 'lucide-react'
+import { Heart, ExternalLink, ChevronDown, ChevronUp, Share2, Tag as TagIcon, Brain } from 'lucide-react'
 import { Paper, PaperAnalysis, addFavorite, removeFavorite } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -192,18 +192,23 @@ export function PaperCard({
           {/* 第一行：主要操作按钮 */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex gap-1 sm:gap-2 flex-wrap">
-              {analysis && (
-                <button
-                  onClick={() => setExpanded(!expanded)}
-                  className="text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2 bg-neutral-100 text-neutral-700 rounded-md hover:bg-neutral-200 transition-colors flex items-center gap-1"
-                >
-                  {expanded ? (
-                    <>收起分析 <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4" /></>
-                  ) : (
-                    <>查看分析 <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" /></>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className={`text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2 rounded-md transition-colors flex items-center gap-1 ${
+                  expanded 
+                    ? 'bg-amber-100 text-amber-700' 
+                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                }`}
+              >
+                {expanded ? (
+                  <>收起分析 <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4" /></>
+                ) : (
+                  <>
+                    <Brain className="w-3 h-3 sm:w-4 sm:h-4" />
+                    AI 深度分析
+                  </>
+                )}
+              </button>
               <a
                 href={paper.pdf_url}
                 target="_blank"
@@ -242,7 +247,7 @@ export function PaperCard({
         </div>
 
         {/* 第三行：展开的分析内容 */}
-        {expanded && analysis && (
+        {expanded && (
           <div className="mt-4 space-y-4 border-t border-neutral-100 pt-4">
             {/* 新的深度分析组件 */}
             <PaperDeepAnalysis 
