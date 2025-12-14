@@ -49,6 +49,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         response_format: { type: 'json_object' }
       })
     })
+    if (!resp.ok) {
+      const txt = await resp.text()
+      res.status(200).json({ success: false, error: { message: `LLM请求失败: ${txt.slice(0,120)}` } })
+      return
+    }
     const out = await resp.json()
     let content = out?.choices?.[0]?.message?.content || ''
     // 尝试稳健提取JSON
@@ -105,10 +110,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: t } = await sb.from('tags').select('id').eq('name', name).maybeSingle()
       let tagId = t?.id
       if (!tagId) {
-        tagId = crypto.randomUUID()
-        await sb.from('tags').insert({ id: tagId, name })
+        const { data: created } = await sb
+          .from('tags')
+          .upsert({ name }, { onConflict: 'name' })
+          .select('id')
+          .single()
+        tagId = created?.id
       }
-      tagIds.push(tagId)
+      if (tagId) tagIds.push(tagId)
     }
     for (const tid of tagIds) {
       const { data: rel } = await sb
