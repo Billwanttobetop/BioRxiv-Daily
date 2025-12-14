@@ -1,44 +1,60 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export const config = {
+  runtime: 'edge'
+}
+
+export default async function handler(req: Request) {
   if (req.method !== 'POST') {
-    res.status(405).send('Method Not Allowed')
-    return
+    return new Response('Method Not Allowed', { status: 405 })
   }
-  const { paper_id } = req.body || {}
+  let body
+  try {
+    body = await req.json()
+  } catch {
+    return new Response(JSON.stringify({ success: false, error: { message: 'Invalid JSON body' } }), {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+  const { paper_id } = body || {}
   if (!paper_id) {
-    res.status(200).json({ success: false, error: { message: 'paper_id required' } })
-    return
+    return new Response(JSON.stringify({ success: false, error: { message: 'paper_id required' } }), {
+      headers: { 'Content-Type': 'application/json' }
+    })
   }
+
+  // Edge Runtime: use standard process.env (Vite/Next.js polyfills this)
   const supabaseUrl = process.env.SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
   const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
   const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
-  
+
   if (!supabaseUrl) {
-    res.status(500).json({ success: false, error: { message: 'Server Config Error: SUPABASE_URL missing' } })
-    return
+    return new Response(JSON.stringify({ success: false, error: { message: 'Server Config Error: SUPABASE_URL missing' } }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 500
+    })
   }
   if (!serviceKey) {
-    res.status(500).json({ 
+    return new Response(JSON.stringify({ 
       success: false, 
       error: { 
         message: 'Server Config Error: SUPABASE_SERVICE_ROLE_KEY missing. Translation requires admin privileges.' 
       } 
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 500
     })
-    return
   }
-  
-  // Wrap everything in a try-catch block to prevent 500 crashes from propagating as HTML
+
   try {
     const sb = createClient(supabaseUrl, serviceKey)
     
-    // ... (rest of logic) ...
-    
     if (!DEEPSEEK_API_KEY) {
-      res.status(500).json({ success: false, error: { message: 'Server Config Error: DEEPSEEK_API_KEY missing' } })
-      return
+      return new Response(JSON.stringify({ success: false, error: { message: 'Server Config Error: DEEPSEEK_API_KEY missing' } }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 500
+      })
     }
 
     const { data: paper, error: pErr } = await sb
@@ -48,11 +64,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .maybeSingle()
     if (pErr) throw pErr
     if (!paper) {
-      res.status(200).json({ success: false, error: { message: 'Paper not found' } })
-      return
+      return new Response(JSON.stringify({ success: false, error: { message: 'Paper not found' } }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
     const text = `标题: ${paper.title}\n\n摘要: ${paper.abstract || ''}`
     const prompt = `你是中文学术助手。请将给定的英文论文标题与摘要翻译成中文，并总结3-5个“一级主题”标签。\n严格要求：\n1) 输出JSON：{ "title_cn": "..", "abstract_cn": "..", "tags": [".."] }\n2) 标签偏上位词，如“人工智能”“蛋白质”“免疫”“CRISPR”“癌症”“神经科学”“微生物组”“遗传学”“材料”“生物信息学”“合成生物学”“代谢”“药物发现”等，避免过细术语；字符数<=6；\n3) 去重与同义合并；\n文本如下：\n${text}`
+    
+    // Edge Runtime fetch
     const resp = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -67,13 +86,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
         temperature: 0.3,
         response_format: { type: 'json_object' }
-      }),
-      signal: AbortSignal.timeout(60000) // 增加超时时间到60秒 (Vercel Serverless Function Limit is 10s on Hobby, but fetch timeout helps debugging)
+      })
     })
+    
     if (!resp.ok) {
       const txt = await resp.text()
-      res.status(200).json({ success: false, error: { message: `LLM请求失败: ${txt.slice(0,120)}` } })
-      return
+      return new Response(JSON.stringify({ success: false, error: { message: `LLM请求失败: ${txt.slice(0,120)}` } }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
     const out = await resp.json()
     let content = out?.choices?.[0]?.message?.content || ''
@@ -111,8 +131,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const tags = Array.from(new Set(tagsRaw.map(normalize))).slice(0, 5)
     if (!title_cn && !abstract_cn) {
-      res.status(200).json({ success: false, error: { message: 'LLM output invalid' } })
-      return
+      return new Response(JSON.stringify({ success: false, error: { message: 'LLM output invalid' } }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
     // 写入 paper_analysis（若存在则更新）
     const { data: existing } = await sb
@@ -149,10 +170,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .maybeSingle()
       if (!rel) await sb.from('paper_tags').insert({ paper_id, tag_id: tid })
     }
-    res.status(200).json({ success: true, data: { title_cn, abstract_cn, tags } })
+    return new Response(JSON.stringify({ success: true, data: { title_cn, abstract_cn, tags } }), {
+      headers: { 'Content-Type': 'application/json' }
+    })
   } catch (e: any) {
     console.error('API Handler Error:', e)
-    res.status(500).json({ success: false, error: { message: e?.message || 'Server Internal Error' } })
+    return new Response(JSON.stringify({ success: false, error: { message: e?.message || 'Server Internal Error' } }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 500
+    })
   }
 }
-
