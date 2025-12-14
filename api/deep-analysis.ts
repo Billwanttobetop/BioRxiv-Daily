@@ -10,6 +10,8 @@ async function fetchTextFromSources(sourceUrl?: string | null, pdfUrl?: string |
   // Prefer BioRxiv HTML+PDF page
   const candidates: string[] = []
   if (sourceUrl) {
+    // 如果传入的就是完整地址则直接使用
+    candidates.push(sourceUrl)
     candidates.push(`${sourceUrl}.full.pdf+html`)
     candidates.push(`${sourceUrl}.full`)
   }
@@ -18,20 +20,25 @@ async function fetchTextFromSources(sourceUrl?: string | null, pdfUrl?: string |
 
   for (const url of candidates) {
     try {
-      const resp = await fetch(url)
+      const resp = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36',
+          'Accept': 'text/html,*/*'
+        }
+      })
       if (!resp.ok) continue
       const ct = resp.headers.get('content-type') || ''
       if (ct.includes('text/html')) {
         const html = await resp.text()
         const text = htmlToText(html)
-        if (text && text.length > 500) return text
+        if (text && text.length > 200) return text
       } else if (ct.includes('application/pdf')) {
         // Unable to parse PDF server-side without extra deps; skip
         continue
       } else {
         const body = await resp.text()
         const text = htmlToText(body)
-        if (text && text.length > 500) return text
+        if (text && text.length > 200) return text
       }
     } catch (e) {
       // try next candidate
@@ -53,8 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Fetch text content
   const text = await fetchTextFromSources(source_url, pdf_url)
-  const maxChars = parseInt(process.env.ANALYSIS_MAX_CHARS || '12000', 10)
-  const baseContent = text && text.length > 500 ? text : `${title || ''}\n\n${abstract || ''}`
+  const maxChars = parseInt(process.env.ANALYSIS_MAX_CHARS || '18000', 10)
+  const baseContent = text && text.length > 200 ? text : `${title || ''}\n\n${abstract || ''}`
   const content = (baseContent || '').slice(0, Math.max(1000, maxChars))
 
   const apiKey = process.env.DEEPSEEK_API_KEY
