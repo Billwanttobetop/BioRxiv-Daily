@@ -64,7 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
         temperature: 0.3,
         response_format: { type: 'json_object' }
-      })
+      }),
+      signal: AbortSignal.timeout(60000) // 增加超时时间到60秒 (Vercel Serverless Function Limit is 10s on Hobby, but fetch timeout helps debugging)
     })
     if (!resp.ok) {
       const txt = await resp.text()
