@@ -20,8 +20,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json({ success: false, error: { message: 'Server Config Error: SUPABASE_URL missing' } })
     return
   }
+  // 翻译和标签生成是写入操作，必须使用 Service Key 以绕过 RLS（除非我们为 anon 开放了写入权限，但这不安全）
+  // Translation is a write operation, so we MUST use Service Key to bypass RLS.
+  // If Service Key is missing, we cannot proceed with writing to the database.
   if (!serviceKey) {
-    res.status(200).json({ success: false, error: { message: 'Server Config Error: SUPABASE_SERVICE_ROLE_KEY missing. Please check Vercel env vars.' } })
+    res.status(200).json({ 
+      success: false, 
+      error: { 
+        message: 'Server Config Error: SUPABASE_SERVICE_ROLE_KEY missing. Translation requires admin privileges to write to the database. Please configure this environment variable in Vercel.' 
+      } 
+    })
     return
   }
   if (!DEEPSEEK_API_KEY) {

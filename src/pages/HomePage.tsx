@@ -465,7 +465,8 @@ export function HomePage() {
       const json = await resp.json()
       if (!json.success) {
         console.error('翻译失败:', json.error)
-        alert(json.error?.message || '翻译失败，请稍后重试')
+        // 移除 alert，使用 console.error
+        // alert(json.error?.message || '翻译失败，请稍后重试')
         return
       }
       const { title_cn, abstract_cn, tags } = json.data || {}
@@ -479,11 +480,12 @@ export function HomePage() {
       loadPopularTags()
     } catch (error: any) {
       console.error('Error analyzing paper:', error)
-      if (error.message && error.message.includes('API key')) {
-        alert('AI分析功能需要配置MiniMax API密钥，请联系管理员')
-      } else {
-        alert('分析失败，请稍后重试')
-      }
+      // 移除 alert，使用 console.error
+      // if (error.message && error.message.includes('API key')) {
+      //   alert('AI分析功能需要配置MiniMax API密钥，请联系管理员')
+      // } else {
+      //   alert('分析失败，请稍后重试')
+      // }
     } finally {
       setAnalyzingId(null)
     }
