@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, saveTagsForPaper } from '@/lib/supabase'
 import { 
   LayoutDashboard, 
@@ -65,6 +65,7 @@ export default function AdminConsole() {
   const [queue, setQueue] = useState<{ id: string; title: string; abstract?: string | null }[]>([])
   const [progress, setProgress] = useState({ total: 0, done: 0, ok: 0, err: 0 })
   const [running, setRunning] = useState(false)
+  const runningRef = useRef(false)
   const [results, setResults] = useState<{ id: string; ok: boolean; error?: string }[]>([])
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'batch' | 'settings'>('dashboard')
 
@@ -163,12 +164,13 @@ export default function AdminConsole() {
       return
     }
     setRunning(true)
+    runningRef.current = true
     setMessage('开始批量处理...')
     const iv = Math.max(100, Math.min(5000, Number(interval) || 500))
     const resultsLocal: { id: string; ok: boolean; error?: string }[] = []
     
     for (let i = 0; i < queue.length; i++) {
-      if (!running && i > 0) break // Stop if user cancelled (naive check, actually need ref or state check inside loop)
+      if (!runningRef.current) break 
       
       const { id, title, abstract } = queue[i]
       try {
@@ -198,8 +200,15 @@ export default function AdminConsole() {
       await new Promise(r => setTimeout(r, iv))
     }
     setRunning(false)
+    runningRef.current = false
     setMessage('批量任务结束')
     loadStats() // Refresh stats
+  }
+
+  const stopBatch = () => {
+    runningRef.current = false
+    setRunning(false)
+    setMessage('正在停止...')
   }
 
   const fetchLatestPapers = async () => {
@@ -411,6 +420,14 @@ export default function AdminConsole() {
                         <PlayCircle className="w-4 h-4" />
                         2. 开始批量分析 ({queue.length})
                       </button>
+                      {running && (
+                        <button 
+                          onClick={stopBatch} 
+                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium text-sm flex items-center gap-2"
+                        >
+                          停止
+                        </button>
+                      )}
                     </div>
 
                     {/* Progress */}
