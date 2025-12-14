@@ -192,20 +192,6 @@ export function PaperCard({
           {/* 第一行：主要操作按钮 */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex gap-1 sm:gap-2 flex-wrap">
-              {!analysis && onAnalyze && (
-                <button
-                  onClick={() => onAnalyze(paper.id)}
-                  disabled={analyzing}
-                  className="text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {analyzing ? '翻译中...' : '翻译标题摘要'}
-                </button>
-              )}
-              {errorMsg && (
-                <span className="text-xs text-red-500 flex items-center ml-2">
-                  ⚠️ {errorMsg}
-                </span>
-              )}
               {analysis && (
                 <button
                   onClick={() => setExpanded(!expanded)}
