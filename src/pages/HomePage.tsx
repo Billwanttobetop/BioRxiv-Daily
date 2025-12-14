@@ -471,44 +471,27 @@ export function HomePage() {
   async function handleAnalyze(paperId: string) {
     setAnalyzingId(paperId)
     try {
-      // 直接调用analyze-paper-v2进行分析（包含标签提取）
-      const { data, error } = await supabase.functions.invoke('analyze-paper-v2', {
-        body: { paper_id: paperId }
+      // 使用统一的“翻译+标签”服务端API，写库并返回数据
+      const resp = await fetch('/api/translate-paper', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paper_id: paperId })
       })
-
-      if (error) {
-        // 如果分析失败，显示友好提示
-        if (error.message && error.message.includes('Missing MiniMax API key')) {
-          alert('AI分析功能需要配置MiniMax API密钥，请联系管理员')
-        } else {
-          console.error('分析错误:', error)
-          alert('分析失败，请稍后重试')
-        }
+      const json = await resp.json()
+      if (!json.success) {
+        console.error('翻译失败:', json.error)
+        alert('翻译失败，请稍后重试')
         return
       }
-
-      console.log('分析成功:', data)
-      // 标签后备：基于标题+摘要提取3-5个标签并写库
-      try {
-        const target = papers.find(p => p.paper.id === paperId)?.paper
-        const resp = await fetch('/api/extract-tags', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: target?.title, abstract: target?.abstract })
-        })
-        if (resp.ok) {
-          const json = await resp.json()
-          if (json.success && Array.isArray(json.tags)) {
-            await saveTagsForPaper(paperId, json.tags)
-          }
-        }
-      } catch (e) {
-        console.error('后备标签提取失败', e)
-      }
-
-      // 重新加载数据以显示新标签和分析
-      await loadPapers({ initialLoad: true })
-      await loadPopularTags()
+      const { title_cn, abstract_cn, tags } = json.data || {}
+      // 局部更新当前卡片，避免整页刷新
+      setPapers(prev => prev.map(p => p.paper.id === paperId ? {
+        ...p,
+        analysis: { ...(p.analysis || {}), paper_id: paperId, title_cn, abstract_cn } as any,
+        tags: Array.isArray(tags) ? tags : p.tags
+      } : p))
+      // 后台刷新热门标签
+      loadPopularTags()
     } catch (error: any) {
       console.error('Error analyzing paper:', error)
       if (error.message && error.message.includes('API key')) {
