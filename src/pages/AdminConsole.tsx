@@ -163,6 +163,22 @@ export default function AdminConsole() {
       setMessage(e?.message || '抓取失败')
     } finally { setBusy(false) }
   }
+  const backfillTags = async () => {
+    setBusy(true)
+    setMessage('正在补齐缺少标签的论文...')
+    try {
+      const resp = await fetch('/api/backfill-tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit: Number(limit) || 500 }) })
+      const json = await resp.json()
+      if (json.success) {
+        setMessage(`补齐完成：处理 ${json.processed} 篇`)
+        await identifyQueue()
+      } else {
+        setMessage(json.error?.message || '补齐失败')
+      }
+    } catch (e: any) {
+      setMessage(e?.message || '补齐失败')
+    } finally { setBusy(false) }
+  }
 
   if (!token) {
     return (
@@ -202,6 +218,7 @@ export default function AdminConsole() {
             <button className="bg-neutral-800 text-white rounded px-4 py-2 disabled:opacity-50" onClick={identifyQueue} disabled={busy}>识别待翻译</button>
             <button className="bg-amber-500 text-white rounded px-4 py-2 disabled:opacity-50" onClick={batchAnalyze} disabled={busy || running || queue.length===0}>开始批量翻译</button>
             <button className="bg-neutral-100 text-neutral-700 rounded px-4 py-2 disabled:opacity-50" onClick={fetchLatestPapers} disabled={busy}>获取最新论文</button>
+            <button className="bg-blue-500 text-white rounded px-4 py-2 disabled:opacity-50" onClick={backfillTags} disabled={busy}>补齐缺少标签</button>
           </div>
           {progress.total > 0 && (
             <div className="mt-2">
@@ -231,4 +248,3 @@ export default function AdminConsole() {
     </div>
   )
 }
-
