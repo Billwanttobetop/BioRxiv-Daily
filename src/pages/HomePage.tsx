@@ -217,17 +217,26 @@ export function HomePage() {
   }
 
   const loadPopularTags = useCallback(async () => {
-    clearTimeout(tagsDebounceRef.current)
-    tagsDebounceRef.current = setTimeout(async () => {
-      try {
-        const resp = await fetch('/api/popular-tags')
-        const json = await resp.json()
-        if (json.success && Array.isArray(json.tags) && json.tags.length > 0) {
-          setAllTags(json.tags)
-          localStorage.setItem('popularTagsCache', JSON.stringify(json.tags))
-        }
-      } catch {}
-    }, 200)
+    try {
+      // 1. 尝试直接调用 RPC（最高性能，最准）
+      const { data, error } = await supabase.rpc('get_global_popular_tags', { limit_count: 20 })
+      if (!error && data && data.length > 0) {
+        const tags = data.map((row: any) => ({ name: row.name, count: Number(row.count) }))
+        setAllTags(tags)
+        localStorage.setItem('popularTagsCache', JSON.stringify(tags))
+        return
+      }
+      
+      // 2. 如果 RPC 失败（例如权限问题），尝试调用 API
+      const resp = await fetch('/api/popular-tags')
+      const json = await resp.json()
+      if (json.success && Array.isArray(json.tags) && json.tags.length > 0) {
+        setAllTags(json.tags)
+        localStorage.setItem('popularTagsCache', JSON.stringify(json.tags))
+      }
+    } catch (e) {
+      console.error('loadPopularTags failed', e)
+    }
   }, [])
 
   // 首屏仅加载一次，避免因用户状态变化导致全页重载
