@@ -221,19 +221,31 @@ export function HomePage() {
       // 防抖，避免短时间内重复计算
       clearTimeout(tagsDebounceRef.current)
       tagsDebounceRef.current = setTimeout(async () => {
-        // 先尝试RPC，如果失败或为空，再回退到全库聚合
-        if (!DISABLE_TAGS_RPC) {
-          try {
-            const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
-            if (!error && data && data.length > 0) {
-              setAllTags(data)
-              localStorage.setItem('popularTagsCache', JSON.stringify(data))
-              return
-            }
-          } catch {}
-        }
+        // 优先调用服务端API，统一聚合逻辑，确保首屏正确
+        try {
+          const resp = await fetch('/api/popular-tags')
+          const json = await resp.json()
+          if (json.success && Array.isArray(json.tags) && json.tags.length > 0) {
+            setAllTags(json.tags)
+            localStorage.setItem('popularTagsCache', JSON.stringify(json.tags))
+            return
+          }
+        } catch {}
+        // 再尝试数据库RPC
+        try {
+          const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
+          if (!error && data && data.length > 0) {
+            setAllTags(data)
+            localStorage.setItem('popularTagsCache', JSON.stringify(data))
+            return
+          }
+        } catch {}
+        // 最后回退到前端全库聚合
         await computeGlobalPopularTags()
-        localStorage.setItem('popularTagsCache', JSON.stringify(allTags))
+        // 这里避免写入过期的缓存，直接用当前状态
+        setTimeout(() => {
+          localStorage.setItem('popularTagsCache', JSON.stringify(allTags))
+        }, 0)
       }, 300)
     } catch (error) {
       // 安静回退到全库统计
