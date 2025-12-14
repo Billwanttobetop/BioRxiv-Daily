@@ -15,8 +15,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
   const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
   const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
-  if (!supabaseUrl || !serviceKey || !DEEPSEEK_API_KEY) {
-    res.status(200).json({ success: false, error: { message: 'Server not configured' } })
+  
+  if (!supabaseUrl) {
+    res.status(200).json({ success: false, error: { message: 'Server Config Error: SUPABASE_URL missing' } })
+    return
+  }
+  if (!serviceKey) {
+    res.status(200).json({ success: false, error: { message: 'Server Config Error: SUPABASE_SERVICE_ROLE_KEY missing. Please check Vercel env vars.' } })
+    return
+  }
+  if (!DEEPSEEK_API_KEY) {
+    res.status(200).json({ success: false, error: { message: 'Server Config Error: DEEPSEEK_API_KEY missing' } })
     return
   }
   const sb = createClient(supabaseUrl, serviceKey)
