@@ -42,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const p of targets) {
       try {
         const prompt = `请基于论文标题与摘要生成3-5个“一级主题”标签，JSON输出：{"tags": [".."]}。标签需泛化、中文、<=6字；去重。\n标题: ${p.title}\n摘要: ${p.abstract || ''}`
-        const resp = await fetch(`${baseUrl}/chat/completions`, {
+        const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'deepseek-chat', messages: [ { role: 'system', content: 'You are a helpful assistant.' }, { role: 'user', content: prompt } ], temperature: 0.2, response_format: { type: 'json_object' } })
