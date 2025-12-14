@@ -30,6 +30,8 @@ export function HomePage() {
   const tagsDebounceRef = { current: 0 as any }
   const [restoredScroll, setRestoredScroll] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
+  const [tagSearchNextPage, setTagSearchNextPage] = useState(1)
+  const [initialThreeDaysLoaded, setInitialThreeDaysLoaded] = useState(false)
 
   const PAPERS_PER_PAGE = 50
   const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'false') === 'true'
@@ -48,6 +50,64 @@ export function HomePage() {
       console.error('Error fetching favorites:', error)
     }
   }, [user])
+
+  const loadInitialThreeDays = useCallback(async () => {
+    setLoading(true)
+    try {
+      let pageIdx = 1
+      const acc: PaperWithData[] = []
+      const dateSet = new Set<string>()
+      while (dateSet.size < 3) {
+        const from = (pageIdx - 1) * PAPERS_PER_PAGE
+        const to = from + PAPERS_PER_PAGE - 1
+        const { data: papersData, error: papersError } = await supabase
+          .from('papers')
+          .select('*')
+          .order('published_date', { ascending: false })
+          .range(from, to)
+        if (papersError) throw papersError
+        if (!papersData || papersData.length === 0) break
+        const paperIds = papersData.map(p => p.id)
+        const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
+          supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
+          supabase.from('paper_tags').select('*').in('paper_id', paperIds),
+        ])
+        const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
+        const { data: tagsData } = tagIds.length > 0
+          ? await supabase.from('tags').select('id, name').in('id', tagIds)
+          : { data: [] as { id: string; name: string }[] }
+        const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
+        const paperTagsMap = new Map() as Map<string, string[]>
+        (paperTagsData || []).forEach(pt => {
+          const pid = pt.paper_id
+          if (!paperTagsMap.has(pid)) paperTagsMap.set(pid, [])
+          const tName = tagIdToName.get(pt.tag_id)
+          if (tName) paperTagsMap.get(pid)!.push(tName)
+        })
+        const mergedBatch: PaperWithData[] = papersData.map(paper => ({
+          paper,
+          analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
+          tags: paperTagsMap.get(paper.id) || [],
+        }))
+        acc.push(...mergedBatch)
+        mergedBatch.forEach(p => {
+          const d = new Date(p.paper.published_date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' })
+          dateSet.add(d)
+        })
+        if (papersData.length < PAPERS_PER_PAGE) break
+        pageIdx += 1
+        if (pageIdx > 10) break
+      }
+      setPapers(acc)
+      setPage(pageIdx)
+      setHasMore(true)
+      setInitialThreeDaysLoaded(true)
+    } catch (e) {
+      console.error('loadInitialThreeDays error', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   const loadPapers = useCallback(async ({ initialLoad = false }: { initialLoad?: boolean } = {}) => {
     const pageToLoad = initialLoad ? 1 : page + 1
@@ -84,7 +144,7 @@ export function HomePage() {
         : { data: [] as { id: string; name: string }[] }
 
       const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
-      const paperTagsMap = new Map<string, string[]>()
+      const paperTagsMap = new Map() as Map<string, string[]>
       paperTagsData?.forEach(pt => {
         const paperId = pt.paper_id
         if (!paperTagsMap.has(paperId)) paperTagsMap.set(paperId, [])
@@ -197,7 +257,7 @@ export function HomePage() {
   useEffect(() => {
     if (!initialized) {
       setInitialized(true)
-      loadPapers({ initialLoad: true })
+      loadInitialThreeDays()
       // 立即计算热门标签，避免用户未展开时为空
       ;(async () => {
         await computeGlobalPopularTags()
@@ -225,9 +285,120 @@ export function HomePage() {
     }
   }, [papers, allTags])
 
+  async function loadTagPapersInitial(tagName: string) {
+    setLoading(true)
+    try {
+      let pageIdx = 1
+      const collected: PaperWithData[] = []
+      while (collected.length < 50) {
+        const from = (pageIdx - 1) * PAPERS_PER_PAGE
+        const to = from + PAPERS_PER_PAGE - 1
+        const { data: papersData, error: papersError } = await supabase
+          .from('papers')
+          .select('*')
+          .order('published_date', { ascending: false })
+          .range(from, to)
+        if (papersError) throw papersError
+        if (!papersData || papersData.length === 0) break
+        const paperIds = papersData.map(p => p.id)
+        const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
+          supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
+          supabase.from('paper_tags').select('*').in('paper_id', paperIds),
+        ])
+        const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
+        const { data: tagsData } = tagIds.length > 0
+          ? await supabase.from('tags').select('id, name').in('id', tagIds)
+          : { data: [] as { id: string; name: string }[] }
+        const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
+        const paperTagsMap = new Map() as Map<string, string[]>
+        (paperTagsData || []).forEach(pt => {
+          const pid = pt.paper_id
+          if (!paperTagsMap.has(pid)) paperTagsMap.set(pid, [])
+          const tName = tagIdToName.get(pt.tag_id)
+          if (tName) paperTagsMap.get(pid)!.push(tName)
+        })
+        const mergedBatch: PaperWithData[] = papersData.map(paper => ({
+          paper,
+          analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
+          tags: paperTagsMap.get(paper.id) || [],
+        }))
+        const matched = mergedBatch.filter(p => p.tags.includes(tagName))
+        collected.push(...matched)
+        if (papersData.length < PAPERS_PER_PAGE) break
+        pageIdx += 1
+      }
+      setPapers(collected.slice(0, 50))
+      setTagSearchNextPage(pageIdx)
+      setHasMore(true)
+      setSelectedTag(tagName)
+    } catch (e) {
+      console.error('loadTagPapersInitial error', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function loadTagMore() {
+    if (!selectedTag) return
+    setLoadingMore(true)
+    try {
+      let pageIdx = tagSearchNextPage
+      const collected: PaperWithData[] = []
+      while (collected.length < PAPERS_PER_PAGE) {
+        const from = (pageIdx - 1) * PAPERS_PER_PAGE
+        const to = from + PAPERS_PER_PAGE - 1
+        const { data: papersData, error: papersError } = await supabase
+          .from('papers')
+          .select('*')
+          .order('published_date', { ascending: false })
+          .range(from, to)
+        if (papersError) throw papersError
+        if (!papersData || papersData.length === 0) break
+        const paperIds = papersData.map(p => p.id)
+        const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
+          supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
+          supabase.from('paper_tags').select('*').in('paper_id', paperIds),
+        ])
+        const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
+        const { data: tagsData } = tagIds.length > 0
+          ? await supabase.from('tags').select('id, name').in('id', tagIds)
+          : { data: [] as { id: string; name: string }[] }
+        const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
+        const paperTagsMap = new Map() as Map<string, string[]>
+        (paperTagsData || []).forEach(pt => {
+          const pid = pt.paper_id
+          if (!paperTagsMap.has(pid)) paperTagsMap.set(pid, [])
+          const tName = tagIdToName.get(pt.tag_id)
+          if (tName) paperTagsMap.get(pid)!.push(tName)
+        })
+        const mergedBatch: PaperWithData[] = papersData.map(paper => ({
+          paper,
+          analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
+          tags: paperTagsMap.get(paper.id) || [],
+        }))
+        const matched = mergedBatch.filter(p => p.tags.includes(selectedTag))
+        collected.push(...matched)
+        if (papersData.length < PAPERS_PER_PAGE) break
+        pageIdx += 1
+      }
+      setPapers(prev => [...prev, ...collected])
+      setTagSearchNextPage(pageIdx)
+      if (collected.length === 0) setHasMore(false)
+    } catch (e) {
+      console.error('loadTagMore error', e)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  function handleSelectTag(tag: string) {
+    loadTagPapersInitial(tag)
+  }
+
   async function handleLoadMore() {
     if (!loadingMore && hasMore) {
-      loadPapers({ initialLoad: false })
+      if (selectedTag) await loadTagMore()
+      else loadPapers({ initialLoad: false })
     }
   }
 
@@ -543,7 +714,14 @@ export function HomePage() {
                   allTags.map((tag) => (
                     <button
                       key={tag.name}
-                      onClick={() => setSelectedTag(selectedTag === tag.name ? null : tag.name)}
+                      onClick={() => {
+                        if (selectedTag === tag.name) {
+                          setSelectedTag(null)
+                          loadPapers({ initialLoad: true })
+                        } else {
+                          handleSelectTag(tag.name)
+                        }
+                      }}
                       className={`text-xs px-3 py-1 rounded-full transition-colors ${
                         selectedTag === tag.name
                           ? 'bg-blue-500 text-white'
@@ -574,7 +752,7 @@ export function HomePage() {
       {/* 文献列表 */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         <div className="mb-4 sm:mb-6">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <div className="flex items-center gap-3">
               <h2 className="text-xl sm:text-2xl font-bold text-neutral-800">
                 BioRxiv 文献日报
@@ -583,7 +761,7 @@ export function HomePage() {
               <button
                 onClick={handleFetchLatestPapers}
                 disabled={fetchingPapers}
-                className="flex items-center gap-2 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm w-max"
                 title="获取最新论文并自动解析"
               >
                 {fetchingPapers ? (
@@ -601,7 +779,7 @@ export function HomePage() {
                 )}
               </button>
             </div>
-            <div>
+            <div className="sm:text-right">
               <p className="text-sm sm:text-base text-neutral-600">
                 共 {totalCount} 篇文献
                 {selectedTag && <span className="ml-2 text-blue-600">（标签: {selectedTag}）</span>}
