@@ -369,28 +369,49 @@ async function saveTagsForPaper(supabase: any, paperId: string, tagNames: string
         .eq('name', name)
         .maybeSingle()
       let tagId = existing?.id
+      
       if (!tagId) {
-        tagId = crypto.randomUUID()
-        await supabase.from('tags').insert({ id: tagId, name })
+        // Create new tag
+        // Use upsert to handle race conditions safely
+        const { data: inserted, error: upsertError } = await supabase
+            .from('tags')
+            .upsert({ name }, { onConflict: 'name' }) 
+            .select('id')
+            .single()
+            
+        if (upsertError) {
+            console.error(`Failed to upsert tag "${name}":`, upsertError)
+            continue
+        }
+        tagId = inserted?.id
       }
-      tagIds.push(tagId)
-    } catch (e) {
-      console.error('saveTagsForPaper: tag upsert error', e)
-    }
-  }
-  for (const tagId of tagIds) {
-    try {
-      const { data: existingRel } = await supabase
-        .from('paper_tags')
-        .select('id')
-        .eq('paper_id', paperId)
-        .eq('tag_id', tagId)
-        .maybeSingle()
-      if (!existingRel) {
-        await supabase.from('paper_tags').insert({ paper_id: paperId, tag_id: tagId })
+      
+      if (tagId) {
+         // Create relation
+         // First check existence to avoid unique violation if upsert not supported for relation without unique constraint
+         // But schema says paper_tags has id as PK. Does it have unique constraint on (paper_id, tag_id)?
+         // Schema doesn't explicitly show unique constraint on (paper_id, tag_id) but usually it should.
+         // Let's use select then insert to be safe if we are not sure about unique constraint.
+         
+         const { data: existingRel } = await supabase
+            .from('paper_tags')
+            .select('id')
+            .eq('paper_id', paperId)
+            .eq('tag_id', tagId)
+            .maybeSingle()
+            
+         if (!existingRel) {
+             const { error: relError } = await supabase
+                .from('paper_tags')
+                .insert({ paper_id: paperId, tag_id: tagId })
+             
+             if (relError) {
+                 console.error(`Failed to link tag "${name}" to paper:`, relError)
+             }
+         }
       }
     } catch (e) {
-      console.error('saveTagsForPaper: relation insert error', e)
+      console.error(`Error processing tag "${name}":`, e)
     }
   }
 }
