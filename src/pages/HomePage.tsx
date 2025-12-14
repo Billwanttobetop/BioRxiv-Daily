@@ -217,39 +217,18 @@ export function HomePage() {
   }
 
   const loadPopularTags = useCallback(async () => {
-    try {
-      // 防抖，避免短时间内重复计算
-      clearTimeout(tagsDebounceRef.current)
-      tagsDebounceRef.current = setTimeout(async () => {
-        // 优先调用服务端API，统一聚合逻辑，确保首屏正确
-        try {
-          const resp = await fetch('/api/popular-tags')
-          const json = await resp.json()
-          if (json.success && Array.isArray(json.tags) && json.tags.length > 0) {
-            setAllTags(json.tags)
-            localStorage.setItem('popularTagsCache', JSON.stringify(json.tags))
-            return
-          }
-        } catch {}
-        // 再尝试数据库RPC
-        try {
-          const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
-          if (!error && data && data.length > 0) {
-            setAllTags(data)
-            localStorage.setItem('popularTagsCache', JSON.stringify(data))
-            return
-          }
-        } catch {}
-        // 最后回退到前端全库聚合
-        await computeGlobalPopularTags()
-        const latest = allTags
-        localStorage.setItem('popularTagsCache', JSON.stringify(latest))
-      }, 300)
-    } catch (error) {
-      // 安静回退到全库统计
-      computeGlobalPopularTags()
-    }
-  }, [papers])
+    clearTimeout(tagsDebounceRef.current)
+    tagsDebounceRef.current = setTimeout(async () => {
+      try {
+        const resp = await fetch('/api/popular-tags')
+        const json = await resp.json()
+        if (json.success && Array.isArray(json.tags) && json.tags.length > 0) {
+          setAllTags(json.tags)
+          localStorage.setItem('popularTagsCache', JSON.stringify(json.tags))
+        }
+      } catch {}
+    }, 200)
+  }, [])
 
   // 首屏仅加载一次，避免因用户状态变化导致全页重载
   useEffect(() => {
@@ -265,8 +244,7 @@ export function HomePage() {
             if (Array.isArray(arr) && arr.length > 0) setAllTags(arr)
           } catch {}
         }
-        // 后台更新
-        await computeGlobalPopularTags()
+        // 后台更新：仅服务端接口，避免不准确的本地聚合
         await loadPopularTags()
       })()
       // 全库总数
