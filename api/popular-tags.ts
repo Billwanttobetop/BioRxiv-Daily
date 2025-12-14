@@ -7,12 +7,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
   const supabaseUrl = process.env.SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
-  if (!supabaseUrl || !serviceKey) {
-    res.status(200).json({ success: false, error: { message: 'Supabase not configured (Missing Service Key)' } })
+  // 优先使用 Service Key，如果缺失则回退到 Anon Key (只要 RPC 设置了 SECURITY DEFINER，Anon Key 也能工作)
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+  
+  if (!supabaseUrl || !supabaseKey) {
+    res.status(200).json({ success: false, error: { message: 'Supabase not configured (Missing URL or Key)' } })
     return
   }
-  const sb = createClient(supabaseUrl, serviceKey)
+  const sb = createClient(supabaseUrl, supabaseKey)
   try {
     // 优先尝试 RPC (高性能)
     // Try both new and old function names
