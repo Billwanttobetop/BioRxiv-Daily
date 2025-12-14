@@ -1,0 +1,361 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+}
+
+interface DeepSeekResponse {
+  choices: Array<{
+    message: {
+      content: string
+    }
+  }>
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
+}
+
+interface TranslationRequest {
+  paper_id: string
+  title: string
+  abstract: string
+  priority?: number
+}
+
+interface TranslationResult {
+  title_cn: string
+  abstract_cn: string
+  main_institutions: string[]
+  translation_cost: number
+  token_count: number
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  try {
+    const { paper_id, title, abstract, priority = 1 }: TranslationRequest = await req.json()
+    
+    if (!paper_id || !title || !abstract) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: { message: '缺少必需参数: paper_id, title, abstract' }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    // 获取Supabase配置
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const deepseekApiKey = Deno.env.get('DEEPSEEK_API_KEY')
+    const deepseekApiUrl = Deno.env.get('DEEPSEEK_API_URL') || 'https://api.deepseek.com/v1'
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('缺少Supabase配置')
+    }
+    
+    if (!deepseekApiKey) {
+      console.warn('缺少DeepSeek API密钥，跳过翻译')
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: { skipped: true, reason: 'API密钥未配置' }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    
+    console.log(`开始翻译论文: ${paper_id}`)
+    console.log(`原文标题: ${title}`)
+    console.log(`原文摘要: ${abstract.substring(0, 200)}...`)
+    
+    // 检查是否已存在翻译结果
+    const { data: existingAnalysis, error: checkError } = await supabase
+      .from('paper_analysis')
+      .select('id, title_cn, abstract_cn, translation_status')
+      .eq('paper_id', paper_id)
+      .maybeSingle()
+    
+    if (checkError) {
+      console.error('检查现有翻译失败:', checkError)
+    } else if (existingAnalysis && existingAnalysis.translation_status === 'completed') {
+      console.log('翻译已存在，跳过处理')
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            cached: true,
+            title_cn: existingAnalysis.title_cn,
+            abstract_cn: existingAnalysis.abstract_cn
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // 更新翻译状态为处理中
+    await supabase
+      .from('paper_analysis')
+      .upsert({
+        paper_id,
+        translation_status: 'processing',
+        translated_at: new Date().toISOString()
+      }, {
+        onConflict: 'paper_id'
+      })
+    
+    // 执行翻译
+    const startTime = Date.now()
+    const translationResult = await performTranslation(
+      title,
+      abstract,
+      deepseekApiKey,
+      deepseekApiUrl
+    )
+    const processingTime = Date.now() - startTime
+    
+    console.log(`翻译完成，耗时: ${processingTime}ms`)
+    console.log(`翻译后标题: ${translationResult.title_cn}`)
+    console.log(`翻译后摘要: ${translationResult.abstract_cn.substring(0, 200)}...`)
+    
+    // 更新翻译结果
+    const { error: updateError } = await supabase
+      .from('paper_analysis')
+      .upsert({
+        paper_id,
+        title_cn: translationResult.title_cn,
+        abstract_cn: translationResult.abstract_cn,
+        main_institutions: translationResult.main_institutions,
+        translation_model: 'deepseek-chat',
+        translation_cost: translationResult.translation_cost,
+        translation_status: 'completed',
+        translated_at: new Date().toISOString()
+      }, {
+        onConflict: 'paper_id'
+      })
+    
+    if (updateError) {
+      throw new Error(`更新翻译结果失败: ${updateError.message}`)
+    }
+    
+    // 记录分析统计
+    await supabase.from('analysis_statistics').insert({
+      analysis_type: 'translation',
+      paper_id,
+      model_used: 'deepseek-chat',
+      token_consumed: translationResult.token_count,
+      cost_usd: translationResult.translation_cost,
+      processing_time: Math.ceil(processingTime / 1000),
+      status: 'success'
+    })
+    
+    console.log('翻译结果保存成功')
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          title_cn: translationResult.title_cn,
+          abstract_cn: translationResult.abstract_cn,
+          main_institutions: translationResult.main_institutions,
+          translation_cost: translationResult.translation_cost,
+          token_count: translationResult.token_count,
+          processing_time
+        },
+        message: '翻译完成'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+    
+  } catch (error) {
+    console.error('翻译失败:', error)
+    
+    // 记录失败统计
+    try {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      )
+      
+      await supabase.from('analysis_statistics').insert({
+        analysis_type: 'translation',
+        status: 'failed',
+        error_type: error.message?.substring(0, 50) || 'unknown_error'
+      })
+      
+      // 更新翻译状态为失败
+      const { paper_id } = await req.json().catch(() => ({ paper_id: null }))
+      if (paper_id) {
+        await supabase
+          .from('paper_analysis')
+          .upsert({
+            paper_id,
+            translation_status: 'failed',
+            translated_at: new Date().toISOString()
+          }, {
+            onConflict: 'paper_id'
+          })
+      }
+    } catch (statsError) {
+      console.error('记录失败统计失败:', statsError)
+    }
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: {
+          code: 'TRANSLATION_ERROR',
+          message: error.message,
+          details: error.stack
+        }
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
+  }
+})
+
+async function performTranslation(
+  title: string,
+  abstract: string,
+  apiKey: string,
+  apiUrl: string
+): Promise<TranslationResult> {
+  
+  // 构建翻译提示词
+  const translationPrompt = `你是一位专业的学术翻译专家，专门翻译生物医学领域的学术论文。
+
+请将以下英文论文标题和摘要翻译成中文，要求：
+1. 准确传达原文的学术含义
+2. 使用规范的中文学术语言
+3. 保持专业术语的准确性
+4. 摘要翻译要完整、流畅
+
+英文标题：${title}
+
+英文摘要：${abstract}
+
+请提供以下JSON格式的翻译结果：
+{
+  "title_cn": "中文标题",
+  "abstract_cn": "中文摘要",
+  "main_institutions": ["主要研究机构1", "主要研究机构2"]
+}
+
+注意：
+- 如果无法确定研究机构，可以留空数组
+- 确保翻译质量，不要遗漏重要信息
+- 保持学术严谨性`
+
+  console.log('调用DeepSeek API进行翻译...')
+  
+  const response = await fetch(`${apiUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'system',
+          content: '你是一位专业的学术翻译专家，擅长将英文学术论文准确翻译成中文。请严格按照JSON格式返回翻译结果。'
+        },
+        {
+          role: 'user',
+          content: translationPrompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000,
+      response_format: { type: "json_object" }
+    })
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`DeepSeek API调用失败: ${response.status} ${errorText}`)
+  }
+  
+  const result: DeepSeekResponse = await response.json()
+  const translatedContent = result.choices[0].message.content
+  
+  console.log('DeepSeek API响应:', translatedContent)
+  
+  // 解析JSON格式的翻译结果
+  let parsedResult: TranslationResult
+  try {
+    parsedResult = JSON.parse(translatedContent)
+    
+    // 验证结果格式
+    if (!parsedResult.title_cn || !parsedResult.abstract_cn) {
+      throw new Error('翻译结果格式不完整')
+    }
+    
+    // 确保main_institutions是数组
+    if (!Array.isArray(parsedResult.main_institutions)) {
+      parsedResult.main_institutions = []
+    }
+    
+  } catch (parseError) {
+    console.error('解析翻译结果失败，使用备用方案:', parseError)
+    
+    // 备用方案：手动提取翻译内容
+    const titleMatch = translatedContent.match(/"title_cn":\s*"([^"]+)"/)
+    const abstractMatch = translatedContent.match(/"abstract_cn":\s*"([^"]+)"/)
+    
+    if (!titleMatch || !abstractMatch) {
+      throw new Error('无法从API响应中提取翻译内容')
+    }
+    
+    parsedResult = {
+      title_cn: titleMatch[1],
+      abstract_cn: abstractMatch[1],
+      main_institutions: []
+    }
+  }
+  
+  // 估算token数量和成本
+  const inputTokens = estimateTokens(title + ' ' + abstract)
+  const outputTokens = estimateTokens(parsedResult.title_cn + ' ' + parsedResult.abstract_cn)
+  const totalTokens = inputTokens + outputTokens
+  
+  // DeepSeek定价：$0.14 per 1M input tokens, $0.28 per 1M output tokens
+  const inputCost = (inputTokens / 1000000) * 0.14
+  const outputCost = (outputTokens / 1000000) * 0.28
+  const totalCost = inputCost + outputCost
+  
+  console.log(`翻译token统计: 输入${inputTokens}, 输出${outputTokens}, 总成本$${totalCost.toFixed(6)}`)
+  
+  return {
+    ...parsedResult,
+    translation_cost: totalCost,
+    token_count: totalTokens
+  }
+}
+
+function estimateTokens(text: string): number {
+  // 粗略估算：中文字符按0.6token，英文字符按0.3token计算
+  let chineseCount = 0
+  let englishCount = 0
+  
+  for (const char of text) {
+    if (/[\u4e00-\u9fff]/.test(char)) {
+      chineseCount++
+    } else if (/[a-zA-Z]/.test(char)) {
+      englishCount++
+    }
+  }
+  
+  return Math.ceil(chineseCount * 0.6 + englishCount * 0.3)
+}
