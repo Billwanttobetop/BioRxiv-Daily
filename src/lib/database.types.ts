@@ -259,6 +259,10 @@ export type Database = {
         Args: { limit_count: number }
         Returns: { name: string; count: number }[]
       }
+      get_global_popular_tags: {
+        Args: { limit_count: number }
+        Returns: { name: string; count: number }[]
+      }
     }
     Enums: {}
     CompositeTypes: {}
