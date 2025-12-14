@@ -45,16 +45,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { role: 'system', content: 'You are a helpful assistant.' },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.3
+        temperature: 0.3,
+        response_format: { type: 'json_object' }
       })
     })
     const out = await resp.json()
     let content = out?.choices?.[0]?.message?.content || ''
+    // 尝试稳健提取JSON
     let parsed: { title_cn?: string; abstract_cn?: string; tags?: string[] } = {}
-    try { parsed = JSON.parse(content) } catch {}
+    try { parsed = JSON.parse(content) } catch {
+      try {
+        const match = content.match(/\{[\s\S]*\}/)
+        if (match) parsed = JSON.parse(match[0])
+      } catch {}
+    }
     const title_cn = (parsed.title_cn || '').trim()
     const abstract_cn = (parsed.abstract_cn || '').trim()
-    const tags = Array.from(new Set((parsed.tags || []).map(s => (s || '').trim()).filter(Boolean))).slice(0, 5)
+    const tagsRaw = Array.from(new Set((parsed.tags || []).map(s => (s || '').trim()).filter(Boolean)))
+    // 归一化更泛化的主题词
+    const normalize = (s: string) => {
+      const x = s.trim().toLowerCase()
+      const maps: { key: string; test: RegExp }[] = [
+        { key: '人工智能', test: /(人工智能|ai|深度学习|机器学习|神经网络)/i },
+        { key: '蛋白质', test: /(蛋白质|protein)/i },
+        { key: '免疫', test: /(免疫|t细胞|b细胞|抗体|免疫治疗)/i },
+        { key: 'CRISPR', test: /(crispr|cas9|基因编辑|cas\b)/i },
+        { key: '癌症', test: /(肿瘤|癌症|癌)/i },
+        { key: '神经科学', test: /(神经|大脑|脑|神经元|认知)/i },
+        { key: '微生物组', test: /(微生物组|肠道菌群|microbiome|菌群)/i },
+        { key: '遗传学', test: /(遗传|基因|基因组|变异)/i },
+        { key: '材料', test: /(材料|生物材料|纳米材料|高分子)/i },
+        { key: '生物信息学', test: /(生物信息|计算生物|bioinformatics)/i },
+        { key: '合成生物学', test: /(合成生物|synthetic biology)/i },
+        { key: '代谢', test: /(代谢|代谢通路|代谢组)/i },
+        { key: '药物发现', test: /(药物|药物发现|药物筛选|新药)/i }
+      ]
+      for (const m of maps) if (m.test.test(x)) return m.key
+      return s.length > 6 ? s.slice(0, 6) : s
+    }
+    const tags = Array.from(new Set(tagsRaw.map(normalize))).slice(0, 5)
     if (!title_cn && !abstract_cn) {
       res.status(200).json({ success: false, error: { message: 'LLM output invalid' } })
       return

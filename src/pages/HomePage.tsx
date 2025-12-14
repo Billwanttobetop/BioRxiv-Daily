@@ -480,7 +480,7 @@ export function HomePage() {
       const json = await resp.json()
       if (!json.success) {
         console.error('翻译失败:', json.error)
-        alert('翻译失败，请稍后重试')
+        alert(json.error?.message || '翻译失败，请稍后重试')
         return
       }
       const { title_cn, abstract_cn, tags } = json.data || {}
