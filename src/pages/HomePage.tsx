@@ -242,10 +242,8 @@ export function HomePage() {
         } catch {}
         // 最后回退到前端全库聚合
         await computeGlobalPopularTags()
-        // 这里避免写入过期的缓存，直接用当前状态
-        setTimeout(() => {
-          localStorage.setItem('popularTagsCache', JSON.stringify(allTags))
-        }, 0)
+        const latest = allTags
+        localStorage.setItem('popularTagsCache', JSON.stringify(latest))
       }, 300)
     } catch (error) {
       // 安静回退到全库统计
