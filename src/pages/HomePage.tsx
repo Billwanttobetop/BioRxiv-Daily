@@ -32,6 +32,8 @@ export function HomePage() {
   const [totalCount, setTotalCount] = useState(0)
   const [tagSearchNextPage, setTagSearchNextPage] = useState(1)
   const [initialThreeDaysLoaded, setInitialThreeDaysLoaded] = useState(false)
+  const [selectedTagPaperIds, setSelectedTagPaperIds] = useState<string[]>([])
+  const [selectedTagOffset, setSelectedTagOffset] = useState(0)
 
   const PAPERS_PER_PAGE = 50
   const DISABLE_TAGS_RPC = (import.meta.env.VITE_DISABLE_TAGS_RPC ?? 'false') === 'true'
@@ -54,52 +56,38 @@ export function HomePage() {
   const loadInitialThreeDays = useCallback(async () => {
     setLoading(true)
     try {
-      let pageIdx = 1
-      const acc: PaperWithData[] = []
-      const dateSet = new Set<string>()
-      while (dateSet.size < 3) {
-        const from = (pageIdx - 1) * PAPERS_PER_PAGE
-        const to = from + PAPERS_PER_PAGE - 1
-        const { data: papersData, error: papersError } = await supabase
-          .from('papers')
-          .select('*')
-          .order('published_date', { ascending: false })
-          .range(from, to)
-        if (papersError) throw papersError
-        if (!papersData || papersData.length === 0) break
-        const paperIds = papersData.map(p => p.id)
-        const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
-          supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
-          supabase.from('paper_tags').select('*').in('paper_id', paperIds),
-        ])
-        const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
-        const { data: tagsData } = tagIds.length > 0
-          ? await supabase.from('tags').select('id, name').in('id', tagIds)
-          : { data: [] as { id: string; name: string }[] }
-        const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
-        const paperTagsMap = new Map() as Map<string, string[]>
-        (paperTagsData || []).forEach(pt => {
-          const pid = pt.paper_id
-          if (!paperTagsMap.has(pid)) paperTagsMap.set(pid, [])
-          const tName = tagIdToName.get(pt.tag_id)
-          if (tName) paperTagsMap.get(pid)!.push(tName)
-        })
-        const mergedBatch: PaperWithData[] = papersData.map(paper => ({
-          paper,
-          analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
-          tags: paperTagsMap.get(paper.id) || [],
-        }))
-        acc.push(...mergedBatch)
-        mergedBatch.forEach(p => {
-          const d = new Date(p.paper.published_date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' })
-          dateSet.add(d)
-        })
-        if (papersData.length < PAPERS_PER_PAGE) break
-        pageIdx += 1
-        if (pageIdx > 10) break
-      }
-      setPapers(acc)
-      setPage(pageIdx)
+      const start = new Date()
+      start.setDate(start.getDate() - 2)
+      const startIso = start.toISOString().slice(0, 10)
+      const { data: papersData, error: papersError } = await supabase
+        .from('papers')
+        .select('*')
+        .gte('published_date', startIso)
+        .order('published_date', { ascending: false })
+      if (papersError) throw papersError
+      const paperIds = (papersData || []).map(p => p.id)
+      const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
+        supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
+        supabase.from('paper_tags').select('*').in('paper_id', paperIds),
+      ])
+      const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
+      const { data: tagsData } = tagIds.length > 0
+        ? await supabase.from('tags').select('id, name').in('id', tagIds)
+        : { data: [] as { id: string; name: string }[] }
+      const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
+      const paperTagsMap = new Map() as Map<string, string[]>
+      (paperTagsData || []).forEach(pt => {
+        const pid = pt.paper_id
+        if (!paperTagsMap.has(pid)) paperTagsMap.set(pid, [])
+        const tName = tagIdToName.get(pt.tag_id)
+        if (tName) paperTagsMap.get(pid)!.push(tName)
+      })
+      const mergedBatch: PaperWithData[] = (papersData || []).map(paper => ({
+        paper,
+        analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
+        tags: paperTagsMap.get(paper.id) || [],
+      }))
+      setPapers(mergedBatch)
       setHasMore(true)
       setInitialThreeDaysLoaded(true)
     } catch (e) {
@@ -233,19 +221,19 @@ export function HomePage() {
       // 防抖，避免短时间内重复计算
       clearTimeout(tagsDebounceRef.current)
       tagsDebounceRef.current = setTimeout(async () => {
-        // 始终优先显示全库累积，避免初始为空或RPC返回异常
-        await computeGlobalPopularTags()
+        // 先尝试RPC，如果失败或为空，再回退到全库聚合
         if (!DISABLE_TAGS_RPC) {
           try {
             const { data, error } = await supabase.rpc('get_popular_tags', { limit_count: 20 })
-            if (error) throw error
-            if (data && data.length > 0) {
-              const maxCount = Math.max(...data.map((x: any) => x.count || 0))
-              // 仅当RPC统计明显优于本地聚合时覆盖，否则保持全库结果
-              if (maxCount > 1) setAllTags(data)
+            if (!error && data && data.length > 0) {
+              setAllTags(data)
+              localStorage.setItem('popularTagsCache', JSON.stringify(data))
+              return
             }
           } catch {}
         }
+        await computeGlobalPopularTags()
+        localStorage.setItem('popularTagsCache', JSON.stringify(allTags))
       }, 300)
     } catch (error) {
       // 安静回退到全库统计
@@ -260,6 +248,14 @@ export function HomePage() {
       loadInitialThreeDays()
       // 立即计算热门标签，避免用户未展开时为空
       ;(async () => {
+        const cached = localStorage.getItem('popularTagsCache')
+        if (cached) {
+          try {
+            const arr = JSON.parse(cached)
+            if (Array.isArray(arr) && arr.length > 0) setAllTags(arr)
+          } catch {}
+        }
+        // 后台更新
         await computeGlobalPopularTags()
         await loadPopularTags()
       })()
@@ -342,22 +338,19 @@ export function HomePage() {
     if (!selectedTag) return
     setLoadingMore(true)
     try {
-      let pageIdx = tagSearchNextPage
-      const collected: PaperWithData[] = []
-      while (collected.length < PAPERS_PER_PAGE) {
-        const from = (pageIdx - 1) * PAPERS_PER_PAGE
-        const to = from + PAPERS_PER_PAGE - 1
-        const { data: papersData, error: papersError } = await supabase
+      const next = selectedTagPaperIds.slice(selectedTagOffset, selectedTagOffset + PAPERS_PER_PAGE)
+      if (next.length === 0) {
+        setHasMore(false)
+      } else {
+        const { data: papersData } = await supabase
           .from('papers')
           .select('*')
+          .in('id', next)
           .order('published_date', { ascending: false })
-          .range(from, to)
-        if (papersError) throw papersError
-        if (!papersData || papersData.length === 0) break
-        const paperIds = papersData.map(p => p.id)
+        const ids = (papersData || []).map(p => p.id)
         const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
-          supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
-          supabase.from('paper_tags').select('*').in('paper_id', paperIds),
+          supabase.from('paper_analysis').select('*').in('paper_id', ids),
+          supabase.from('paper_tags').select('*').in('paper_id', ids),
         ])
         const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
         const { data: tagsData } = tagIds.length > 0
@@ -371,19 +364,15 @@ export function HomePage() {
           const tName = tagIdToName.get(pt.tag_id)
           if (tName) paperTagsMap.get(pid)!.push(tName)
         })
-        const mergedBatch: PaperWithData[] = papersData.map(paper => ({
+        const mergedBatch: PaperWithData[] = (papersData || []).map(paper => ({
           paper,
           analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
           tags: paperTagsMap.get(paper.id) || [],
         }))
-        const matched = mergedBatch.filter(p => p.tags.includes(selectedTag))
-        collected.push(...matched)
-        if (papersData.length < PAPERS_PER_PAGE) break
-        pageIdx += 1
+        setPapers(prev => [...prev, ...mergedBatch])
+        setSelectedTagOffset(selectedTagOffset + next.length)
+        if (next.length < PAPERS_PER_PAGE) setHasMore(false)
       }
-      setPapers(prev => [...prev, ...collected])
-      setTagSearchNextPage(pageIdx)
-      if (collected.length === 0) setHasMore(false)
     } catch (e) {
       console.error('loadTagMore error', e)
     } finally {
@@ -391,8 +380,73 @@ export function HomePage() {
     }
   }
 
-  function handleSelectTag(tag: string) {
-    loadTagPapersInitial(tag)
+  async function handleSelectTag(tagName: string) {
+    try {
+      setSelectedTag(tagName)
+      setLoading(true)
+      const { data: tagRow } = await supabase.from('tags').select('id').eq('name', tagName).maybeSingle()
+      const tagId = tagRow?.id
+      if (!tagId) {
+        // fallback: 直接使用当前已加载的过滤
+        const filtered = papers.filter(p => p.tags.includes(tagName)).slice(0, 50)
+        setPapers(filtered)
+        setSelectedTagPaperIds(filtered.map(p => p.paper.id))
+        setSelectedTagOffset(filtered.length)
+        setHasMore(true)
+        setLoading(false)
+        return
+      }
+      // 拉取该标签下所有 paper_id（分页）
+      const pageSize = 1000
+      let offset = 0
+      const ids: string[] = []
+      while (true) {
+        const { data: relChunk } = await supabase
+          .from('paper_tags')
+          .select('paper_id')
+          .eq('tag_id', tagId)
+          .range(offset, offset + pageSize - 1)
+        const list = (relChunk as { paper_id: string }[] | null) || []
+        if (list.length === 0) break
+        ids.push(...list.map(r => r.paper_id))
+        if (list.length < pageSize) break
+        offset += pageSize
+      }
+      // 拉取这些论文并按日期降序
+      const { data: tagPapers } = await supabase
+        .from('papers')
+        .select('*')
+        .in('id', ids)
+        .order('published_date', { ascending: false })
+      const paperIds = (tagPapers || []).map(p => p.id)
+      const [{ data: analysisData }, { data: paperTagsData }] = await Promise.all([
+        supabase.from('paper_analysis').select('*').in('paper_id', paperIds),
+        supabase.from('paper_tags').select('*').in('paper_id', paperIds),
+      ])
+      const tagIds = [...new Set((paperTagsData || []).map(pt => pt.tag_id))]
+      const { data: tagsData } = tagIds.length > 0
+        ? await supabase.from('tags').select('id, name').in('id', tagIds)
+        : { data: [] as { id: string; name: string }[] }
+      const tagIdToName = new Map<string, string>((tagsData || []).map(tag => [tag.id, tag.name]))
+      const paperTagsMap = new Map() as Map<string, string[]>
+      (paperTagsData || []).forEach(pt => {
+        const pid = pt.paper_id
+        if (!paperTagsMap.has(pid)) paperTagsMap.set(pid, [])
+        const tName = tagIdToName.get(pt.tag_id)
+        if (tName) paperTagsMap.get(pid)!.push(tName)
+      })
+      const mergedBatch: PaperWithData[] = (tagPapers || []).map(paper => ({
+        paper,
+        analysis: analysisData?.find(a => a.paper_id === paper.id) || null,
+        tags: paperTagsMap.get(paper.id) || [],
+      }))
+      setSelectedTagPaperIds(mergedBatch.map(p => p.paper.id))
+      setSelectedTagOffset(50)
+      setPapers(mergedBatch.slice(0, 50))
+      setHasMore(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleLoadMore() {
