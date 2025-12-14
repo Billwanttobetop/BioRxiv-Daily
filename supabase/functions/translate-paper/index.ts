@@ -30,6 +30,7 @@ interface TranslationResult {
   title_cn: string
   abstract_cn: string
   main_institutions: string[]
+  tags: string[]
   translation_cost: number
   token_count: number
 }
@@ -126,8 +127,13 @@ Deno.serve(async (req) => {
     
     console.log(`翻译完成，耗时: ${processingTime}ms`)
     console.log(`翻译后标题: ${translationResult.title_cn}`)
-    console.log(`翻译后摘要: ${translationResult.abstract_cn.substring(0, 200)}...`)
+    console.log(`生成标签: ${translationResult.tags.join(', ')}`)
     
+    // 保存标签
+    if (translationResult.tags && translationResult.tags.length > 0) {
+       await saveTagsForPaper(supabase, paper_id, translationResult.tags)
+    }
+
     // 更新翻译结果
     const { error: updateError } = await supabase
       .from('paper_analysis')
@@ -231,14 +237,14 @@ async function performTranslation(
   apiUrl: string
 ): Promise<TranslationResult> {
   
-  // 构建翻译提示词
   const translationPrompt = `你是一位专业的学术翻译专家，专门翻译生物医学领域的学术论文。
 
-请将以下英文论文标题和摘要翻译成中文，要求：
+请将以下英文论文标题和摘要翻译成中文，并提取关键主题标签。要求：
 1. 准确传达原文的学术含义
 2. 使用规范的中文学术语言
 3. 保持专业术语的准确性
 4. 摘要翻译要完整、流畅
+5. 提取3-5个“泛化一级主题标签”的中文短语（偏学科/领域/对象/场景的上位词，如“人工智能”、“免疫”、“癌症”等，避免过细分子名）
 
 英文标题：${title}
 
@@ -248,7 +254,8 @@ async function performTranslation(
 {
   "title_cn": "中文标题",
   "abstract_cn": "中文摘要",
-  "main_institutions": ["主要研究机构1", "主要研究机构2"]
+  "main_institutions": ["主要研究机构1", "主要研究机构2"],
+  "tags": ["标签1", "标签2", "标签3"]
 }
 
 注意：
@@ -269,7 +276,7 @@ async function performTranslation(
       messages: [
         {
           role: 'system',
-          content: '你是一位专业的学术翻译专家，擅长将英文学术论文准确翻译成中文。请严格按照JSON格式返回翻译结果。'
+          content: '你是一位专业的学术翻译专家，擅长将英文学术论文准确翻译成中文并提取标签。请严格按照JSON格式返回结果。'
         },
         {
           role: 'user',
@@ -306,6 +313,11 @@ async function performTranslation(
     if (!Array.isArray(parsedResult.main_institutions)) {
       parsedResult.main_institutions = []
     }
+
+    // 确保tags是数组
+    if (!Array.isArray(parsedResult.tags)) {
+      parsedResult.tags = []
+    }
     
   } catch (parseError) {
     console.error('解析翻译结果失败，使用备用方案:', parseError)
@@ -321,7 +333,8 @@ async function performTranslation(
     parsedResult = {
       title_cn: titleMatch[1],
       abstract_cn: abstractMatch[1],
-      main_institutions: []
+      main_institutions: [],
+      tags: []
     }
   }
   
@@ -341,6 +354,44 @@ async function performTranslation(
     ...parsedResult,
     translation_cost: totalCost,
     token_count: totalTokens
+  }
+}
+
+async function saveTagsForPaper(supabase: any, paperId: string, tagNames: string[]) {
+  const names = Array.from(new Set((tagNames || []).map(n => (n || '').trim()).filter(Boolean)))
+  const tagIds: string[] = []
+  
+  for (const name of names) {
+    try {
+      const { data: existing } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('name', name)
+        .maybeSingle()
+      let tagId = existing?.id
+      if (!tagId) {
+        tagId = crypto.randomUUID()
+        await supabase.from('tags').insert({ id: tagId, name })
+      }
+      tagIds.push(tagId)
+    } catch (e) {
+      console.error('saveTagsForPaper: tag upsert error', e)
+    }
+  }
+  for (const tagId of tagIds) {
+    try {
+      const { data: existingRel } = await supabase
+        .from('paper_tags')
+        .select('id')
+        .eq('paper_id', paperId)
+        .eq('tag_id', tagId)
+        .maybeSingle()
+      if (!existingRel) {
+        await supabase.from('paper_tags').insert({ paper_id: paperId, tag_id: tagId })
+      }
+    } catch (e) {
+      console.error('saveTagsForPaper: relation insert error', e)
+    }
   }
 }
 

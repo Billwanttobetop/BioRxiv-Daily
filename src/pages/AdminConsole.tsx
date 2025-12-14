@@ -175,10 +175,10 @@ export default function AdminConsole() {
       const { id, title, abstract } = queue[i]
       try {
         // 1. Invoke Analysis (Translation + Deep Analysis)
-        const { error } = await supabase.functions.invoke('analyze-paper-v2', { body: { paper_id: id } })
+        const { error } = await supabase.functions.invoke('translate-paper', { body: { paper_id: id, title, abstract } })
         if (error) throw error
         
-        // 2. Backup: Extract Tags (if analysis didn't cover it or failed partially)
+        // 2. Backup: Extract Tags (redundant now but kept for safety)
         try {
           const resp = await fetch('/api/extract-tags', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
