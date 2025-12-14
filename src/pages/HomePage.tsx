@@ -453,8 +453,11 @@ export function HomePage() {
     }
   }
 
+  const [errorMsg, setErrorMsg] = useState<{ id: string; msg: string } | null>(null)
+
   async function handleAnalyze(paperId: string) {
     setAnalyzingId(paperId)
+    setErrorMsg(null)
     try {
       // 使用统一的“翻译+标签”服务端API，写库并返回数据
       const resp = await fetch('/api/translate-paper', {
@@ -465,8 +468,7 @@ export function HomePage() {
       const json = await resp.json()
       if (!json.success) {
         console.error('翻译失败:', json.error)
-        // 移除 alert，使用 console.error
-        // alert(json.error?.message || '翻译失败，请稍后重试')
+        setErrorMsg({ id: paperId, msg: json.error?.message || '翻译失败' })
         return
       }
       const { title_cn, abstract_cn, tags } = json.data || {}
@@ -480,12 +482,7 @@ export function HomePage() {
       loadPopularTags()
     } catch (error: any) {
       console.error('Error analyzing paper:', error)
-      // 移除 alert，使用 console.error
-      // if (error.message && error.message.includes('API key')) {
-      //   alert('AI分析功能需要配置MiniMax API密钥，请联系管理员')
-      // } else {
-      //   alert('分析失败，请稍后重试')
-      // }
+      setErrorMsg({ id: paperId, msg: error.message || '网络请求失败' })
     } finally {
       setAnalyzingId(null)
     }
@@ -889,10 +886,11 @@ export function HomePage() {
                           analysis={analysis}
                           tags={tags}
                           onAnalyze={handleAnalyze}
-                          onTagClick={(tag) => setSelectedTag(tag)}
-                          analyzing={analyzingId === paper.id}
-                          initialIsFavorited={favorites.has(paper.id)}
-                        />
+                        onTagClick={(tag) => setSelectedTag(tag)}
+                        analyzing={analyzingId === paper.id}
+                        initialIsFavorited={favorites.has(paper.id)}
+                        errorMsg={errorMsg?.id === paper.id ? errorMsg.msg : undefined}
+                      />
                       ))}
                     </Masonry>
                   </div>

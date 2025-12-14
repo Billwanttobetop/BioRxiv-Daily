@@ -13,6 +13,7 @@ interface PaperCardProps {
   onTagClick?: (tag: string) => void
   analyzing?: boolean
   initialIsFavorited?: boolean
+  errorMsg?: string
 }
 
 export function PaperCard({ 
@@ -22,7 +23,8 @@ export function PaperCard({
   onAnalyze, 
   onTagClick,
   analyzing,
-  initialIsFavorited = false
+  initialIsFavorited = false,
+  errorMsg
 }: PaperCardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -198,6 +200,11 @@ export function PaperCard({
                 >
                   {analyzing ? '翻译中...' : '翻译标题摘要'}
                 </button>
+              )}
+              {errorMsg && (
+                <span className="text-xs text-red-500 flex items-center ml-2">
+                  ⚠️ {errorMsg}
+                </span>
               )}
               {analysis && (
                 <button
