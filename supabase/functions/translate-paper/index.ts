@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       .upsert({
         paper_id,
         translation_status: 'processing',
-        translated_at: new Date().toISOString()
+        analyzed_at: new Date().toISOString()
       }, {
         onConflict: 'paper_id'
       })
@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
         translation_model: 'deepseek-chat',
         translation_cost: translationResult.translation_cost,
         translation_status: 'completed',
-        translated_at: new Date().toISOString()
+        analyzed_at: new Date().toISOString()
       }, {
         onConflict: 'paper_id'
       })
@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
           .upsert({
             paper_id,
             translation_status: 'failed',
-            translated_at: new Date().toISOString()
+            analyzed_at: new Date().toISOString()
           }, {
             onConflict: 'paper_id'
           })
