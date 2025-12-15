@@ -18,12 +18,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 优先尝试 RPC (高性能)
     // Try both new and old function names
+    // 强制使用 SECURITY DEFINER 的 RPC，并传入 Anon Key 如果需要
     let rpcResult = await sb.rpc('get_global_popular_tags', { limit_count: 20 })
+    
+    // 如果失败且错误不是由于函数不存在（例如权限错误），则尝试 fallback
     if (rpcResult.error) {
-      rpcResult = await sb.rpc('get_popular_tags', { limit_count: 20 })
-    }
-
-    if (!rpcResult.error && rpcResult.data && Array.isArray(rpcResult.data) && rpcResult.data.length > 0) {
+       console.warn('RPC failed:', rpcResult.error)
+       // 继续执行 fallback 逻辑
+    } else if (rpcResult.data && Array.isArray(rpcResult.data) && rpcResult.data.length > 0) {
       const tags = rpcResult.data.map((row: any) => ({ name: row.name, count: Number(row.count || 0) }))
       res.status(200).json({ success: true, tags })
       return
