@@ -74,6 +74,7 @@ export default function AdminConsole() {
   const [limit, setLimit] = useState(200)
   const [interval, setInterval] = useState(500)
   const [only_new, setOnlyNew] = useState(true)
+  const [force_mode, setForceMode] = useState(false)
 
   // Initial Load
   useEffect(() => {
@@ -175,7 +176,9 @@ export default function AdminConsole() {
       const { id, title, abstract } = queue[i]
       try {
         // 1. Invoke Analysis (Translation + Deep Analysis)
-        const { error } = await supabase.functions.invoke('translate-paper', { body: { paper_id: id, title, abstract } })
+        const { error } = await supabase.functions.invoke('translate-paper', { 
+          body: { paper_id: id, title, abstract, force: force_mode } 
+        })
         if (error) throw error
         
         // 2. Backup: Extract Tags (redundant now but kept for safety)
@@ -395,10 +398,14 @@ export default function AdminConsole() {
                         <label className="block text-xs font-medium text-neutral-500 mb-1">请求间隔 (ms)</label>
                         <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={interval} onChange={e => setInterval(Number(e.target.value))} />
                       </div>
-                      <div className="flex items-center pt-5">
+                      <div className="flex items-center pt-5 gap-4">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={only_new} onChange={e => setOnlyNew(e.target.checked)} className="rounded text-amber-500 focus:ring-amber-500" />
                           <span className="text-sm text-neutral-700">仅处理未分析论文</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={force_mode} onChange={e => setForceMode(e.target.checked)} className="rounded text-red-500 focus:ring-red-500" />
+                          <span className="text-sm text-red-700 font-medium">强制重新翻译 (覆盖现有)</span>
                         </label>
                       </div>
                     </div>

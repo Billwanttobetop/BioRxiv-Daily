@@ -24,6 +24,7 @@ interface TranslationRequest {
   title: string
   abstract: string
   priority?: number
+  force?: boolean
 }
 
 interface TranslationResult {
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { paper_id, title, abstract, priority = 1 }: TranslationRequest = await req.json()
+    const { paper_id, title, abstract, priority = 1, force = false }: TranslationRequest = await req.json()
     
     if (!paper_id || !title || !abstract) {
       return new Response(
@@ -89,8 +90,8 @@ Deno.serve(async (req) => {
     
     if (checkError) {
       console.error('检查现有翻译失败:', checkError)
-    } else if (existingAnalysis && existingAnalysis.translation_status === 'completed') {
-      console.log('翻译已存在，跳过处理')
+    } else if (!force && existingAnalysis && existingAnalysis.translation_status === 'completed') {
+      console.log('翻译已存在且未开启强制模式，跳过处理')
       return new Response(
         JSON.stringify({
           success: true,
