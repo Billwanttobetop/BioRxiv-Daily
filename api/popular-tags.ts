@@ -32,16 +32,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Fallback: 内存聚合 (优化版)
-    // 1. 仅拉取 tag_id 统计计数 (避免拉取 tags 表)
-    // 2. 排序取前20
-    // 3. 仅拉取前20个 tag 的 name
-    const pageSize = 2000 // 增大页面大小以减少请求次数
+    // 策略调整：如果数据量过大，优先使用“采样”策略（只统计最近的 N 条记录），
+    // 而不是简单的“前 N 条”（旧数据）。
+    // 由于 paper_tags 表通常没有时间戳，我们假设新插入的记录在物理存储或 ID 上通常较新，
+    // 但最稳妥的是关联 papers 表按时间倒序。但关联查询开销大。
+    // 折中方案：先获取 paper_tags 的总行数（估算），然后从后往前扫，或者只扫最后 10000 条。
+    // 但 Supabase/PostgREST 的 range 是基于 OFFSET 的，对于大表，大 OFFSET 性能很差。
+    // 所以，这里我们维持现有的“前向扫描”，但将熔断阈值提高，并增加超时控制。
+    
+    // 更好的 Fallback：只统计最近 2000 篇论文的标签（如果可能）
+    // 但为了保持代码简单且修复“不更新”的问题，我们只需提高熔断阈值并优化并发。
+    // 如果超过 10 万条，我们接受统计不完全准确，但不能失败。
+    
+    const pageSize = 5000 // 增大页面大小
     let offset = 0
     const countsById = new Map<string, number>()
     
     // 并行请求限制
-    const MAX_PARALLEL = 3
+    const MAX_PARALLEL = 5
     let hasMore = true
+    
+    // 熔断阈值提高到 50万 (Vercel 函数超时通常 10s，需谨慎)
+    // 实际上，如果 RPC 失败，大概率是因为权限。
+    // 如果数据真的很大，内存聚合肯定会超时。
+    // 关键修复：不要让它无限跑，但也不能只跑旧数据。
+    // 如果 RPC 失败，我们尝试调用另一个简单的 RPC 或者直接查 tags 表的 count（如果 tags 表有 count 字段）
+    
+    // 检查 tags 表是否有 cached_count 字段 (假设有优化)
+    /*
+    const { data: cachedTags } = await sb.from('tags').select('name, cached_count').order('cached_count', { ascending: false }).limit(20)
+    if (cachedTags && cachedTags.length > 0) {
+       // ...
+    }
+    */
 
     while (hasMore) {
       const promises = []
@@ -71,8 +94,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       offset += pageSize * MAX_PARALLEL
       
-      // 安全熔断：如果数据量过大 (>10万)，暂时停止以避免超时
-      if (offset > 100000) break 
+      // 安全熔断：提高到 200,000 以覆盖更多数据
+      // 注意：这仍然是权宜之计。真正的修复是修复 RPC。
+      if (offset > 200000) break 
     }
 
     // 排序取 Top 20 IDs

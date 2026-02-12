@@ -60,9 +60,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Fetch text content
   const text = await fetchTextFromSources(source_url, pdf_url)
-  const maxChars = parseInt(process.env.ANALYSIS_MAX_CHARS || '18000', 10)
   const baseContent = text && text.length > 200 ? text : `${title || ''}\n\n${abstract || ''}`
-  const content = (baseContent || '').slice(0, Math.max(1000, maxChars))
+  
+  // 使用完整的上下文窗口，DeepSeek 支持 64K tokens
+  // 估算：1个token约0.6个中文字符或0.3个英文字符
+  // 保守估计，保留约 50000 tokens 空间给输入，剩余给输出和系统提示
+  const MAX_CHARS_FOR_ANALYSIS = 45000 // 约50000 tokens，确保不超出64K限制
+  const content = baseContent.length > MAX_CHARS_FOR_ANALYSIS 
+    ? baseContent.slice(0, MAX_CHARS_FOR_ANALYSIS) + '\n\n[注：论文内容较长，此处为前45000字符的分析。如需完整分析，请分段处理。]'
+    : baseContent
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'

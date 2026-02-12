@@ -48,17 +48,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const contentStr = json?.choices?.[0]?.message?.content || ''
     let tags: string[] | null = null
     try {
-      const arr = JSON.parse(contentStr)
+      // 尝试解析 Markdown 代码块
+      const jsonMatch = contentStr.match(/```json\n([\s\S]*?)\n```/) || contentStr.match(/```([\s\S]*?)```/)
+      const jsonStr = jsonMatch ? jsonMatch[1] : contentStr
+      
+      const arr = JSON.parse(jsonStr)
       if (Array.isArray(arr)) tags = arr.filter((x: any) => typeof x === 'string').map((s: string) => s.trim()).filter(Boolean)
     } catch {
+      // 二次尝试：寻找数组结构
       const m = contentStr.match(/\[[\s\S]*\]/)
       if (m) {
-        const arr = JSON.parse(m[0])
-        if (Array.isArray(arr)) tags = arr.filter((x: any) => typeof x === 'string').map((s: string) => s.trim()).filter(Boolean)
+        try {
+            const arr = JSON.parse(m[0])
+            if (Array.isArray(arr)) tags = arr.filter((x: any) => typeof x === 'string').map((s: string) => s.trim()).filter(Boolean)
+        } catch (e) {
+            console.warn('JSON extraction failed:', e)
+        }
       }
     }
     if (!tags || tags.length === 0) {
-      res.status(200).json({ success: false, error: { message: '模型未返回标签' } })
+      console.warn('DeepSeek raw response:', contentStr)
+      res.status(200).json({ success: false, error: { message: '模型未返回标签', raw: contentStr } })
       return
     }
     // 归一化到更泛化的主题词

@@ -53,6 +53,11 @@ export type Database = {
           solutions: string | null
           limitations: string | null
           prospects: string | null
+          translation_status: string | null
+          translation_model: string | null
+          translation_cost: number | null
+          analyzed_at: string | null
+          translated_at: string | null
           created_at: string
           updated_at: string | null
         }
@@ -66,6 +71,11 @@ export type Database = {
           solutions?: string | null
           limitations?: string | null
           prospects?: string | null
+          translation_status?: string | null
+          translation_model?: string | null
+          translation_cost?: number | null
+          analyzed_at?: string | null
+          translated_at?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -79,6 +89,11 @@ export type Database = {
           solutions?: string | null
           limitations?: string | null
           prospects?: string | null
+          translation_status?: string | null
+          translation_model?: string | null
+          translation_cost?: number | null
+          analyzed_at?: string | null
+          translated_at?: string | null
           created_at?: string
           updated_at?: string | null
         }

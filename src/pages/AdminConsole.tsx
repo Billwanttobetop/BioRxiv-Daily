@@ -175,11 +175,11 @@ export default function AdminConsole() {
       
       const { id, title, abstract } = queue[i]
       try {
-        // 1. Invoke Analysis (Translation + Deep Analysis)
-        const { error } = await supabase.functions.invoke('translate-paper', { 
+        const { data, error } = await supabase.functions.invoke('paper-analyze', { 
           body: { paper_id: id, title, abstract, force: force_mode } 
         })
         if (error) throw error
+        if (data?.data?.skipped) throw new Error(data?.data?.reason || 'DeepSeek未配置，任务被跳过')
         
         // 2. Backup: Extract Tags (redundant now but kept for safety)
         try {
@@ -193,7 +193,13 @@ export default function AdminConsole() {
           }
         } catch {}
 
-        resultsLocal.unshift({ id, ok: true }) // Add to top
+        const [{ data: pa }, { count: tagCount }] = await Promise.all([
+          supabase.from('paper_analysis').select('translation_status,title_cn,abstract_cn,analyzed_at').eq('paper_id', id).maybeSingle(),
+          supabase.from('paper_tags').select('*', { count: 'exact', head: true }).eq('paper_id', id)
+        ])
+        const ok = !!pa && pa.translation_status === 'completed' && !!pa.title_cn && !!pa.abstract_cn && (tagCount || 0) > 0
+        if (!ok) throw new Error('验证失败：翻译或标签未写入')
+        resultsLocal.unshift({ id, ok: true })
         setProgress(p => ({ ...p, done: p.done + 1, ok: p.ok + 1 }))
       } catch (e: any) {
         resultsLocal.unshift({ id, ok: false, error: e?.message || '调用失败' })
@@ -231,13 +237,15 @@ export default function AdminConsole() {
     setBusy(true)
     setMessage('正在补齐缺少标签的论文...')
     try {
-      const resp = await fetch('/api/backfill-tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit: Number(limit) || 500 }) })
-      const json = await resp.json()
-      if (json.success) {
-        setMessage(`补齐完成：处理 ${json.processed} 篇`)
+      const { data, error } = await supabase.functions.invoke('backfill-missing-tags', {
+        body: { limit: Number(limit) || 500 }
+      })
+      if (error) throw error
+      if (data?.success) {
+        setMessage(`补齐完成：处理 ${data.processed} 篇`)
         loadStats()
       } else {
-        setMessage(json.error?.message || '补齐失败')
+        setMessage(data?.error?.message || '补齐失败')
       }
     } catch (e: any) {
       setMessage(e?.message || '补齐失败')
