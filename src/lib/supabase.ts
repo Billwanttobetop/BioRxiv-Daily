@@ -92,21 +92,39 @@ export async function saveTagsForPaper(paperId: string, tagNames: string[]) {
   const tagIds: string[] = []
   for (const name of names) {
     try {
+      // 先尝试查找现有标签
       const { data: existing } = await supabase
         .from('tags')
         .select('id')
         .eq('name', name)
         .maybeSingle()
+      
       let tagId = existing?.id
+      
       if (!tagId) {
-        tagId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
-        await supabase.from('tags').insert({ id: tagId, name })
+        // 标签不存在，创建新标签（让 Supabase 自动生成 UUID）
+        const { data: inserted, error: insertError } = await supabase
+          .from('tags')
+          .insert({ name })
+          .select('id')
+          .single()
+        
+        if (insertError) {
+          console.error('saveTagsForPaper: tag insert error', insertError)
+          continue
+        }
+        tagId = inserted?.id
       }
-      tagIds.push(tagId)
+      
+      if (tagId) {
+        tagIds.push(tagId)
+      }
     } catch (e) {
       console.error('saveTagsForPaper: tag upsert error', e)
     }
   }
+  
+  // 建立论文和标签的关联
   for (const tagId of tagIds) {
     try {
       const { data: existingRel } = await supabase
@@ -115,8 +133,15 @@ export async function saveTagsForPaper(paperId: string, tagNames: string[]) {
         .eq('paper_id', paperId)
         .eq('tag_id', tagId)
         .maybeSingle()
+      
       if (!existingRel) {
-        await supabase.from('paper_tags').insert({ paper_id: paperId, tag_id: tagId })
+        const { error: relError } = await supabase
+          .from('paper_tags')
+          .insert({ paper_id: paperId, tag_id: tagId })
+        
+        if (relError) {
+          console.error('saveTagsForPaper: relation insert error', relError)
+        }
       }
     } catch (e) {
       console.error('saveTagsForPaper: relation insert error', e)
