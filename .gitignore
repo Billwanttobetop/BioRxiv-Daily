@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+.out/
+.next/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Supabase
+.supabase/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Large files
+*.tar.gz
+*.zip
+
+# Deployment package (already has its own repo)
+biorxiv-daily-deployment-package-v1.0.0/
+
+# Misc
+nul
