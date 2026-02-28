@@ -13,8 +13,8 @@ interface TranslationRequest {
   force?: boolean
 }
 
-// 百度翻译 API 配置
-const BAIDU_TRANSLATE_URL = 'https://fanyi-api.baidu.com/api/trans/vip/translate'
+// Google 翻译 API 配置（免费）
+const GOOGLE_TRANSLATE_URL = 'https://translate.googleapis.com/translate_a/single'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -37,8 +37,6 @@ Deno.serve(async (req) => {
     // 获取配置
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const baiduAppId = Deno.env.get('BAIDU_APP_ID')
-    const baiduSecretKey = Deno.env.get('BAIDU_SECRET_KEY')
     
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('缺少Supabase配置')
@@ -88,34 +86,18 @@ Deno.serve(async (req) => {
     let titleCn = ''
     let abstractCn = ''
     
-    // 优先使用百度翻译（速度快、成本低）
-    if (baiduAppId && baiduSecretKey) {
-      console.log('使用百度翻译API...')
-      const startTime = Date.now()
-      
-      // 批量翻译：标题和摘要一起翻译
-      const combinedText = `${title}\n${abstract}`
-      const translated = await baiduTranslate(combinedText, baiduAppId, baiduSecretKey)
-      
-      const processingTime = Date.now() - startTime
-      console.log(`百度翻译完成，耗时: ${processingTime}ms`)
-      
-      // 分离标题和摘要（按换行符分割）
-      const parts = translated.split('\n')
-      titleCn = parts[0] || title
-      abstractCn = parts.slice(1).join('\n') || abstract
-      
-    } else {
-      // 没有百度翻译配置时，使用简单的占位符
-      console.log('未配置百度翻译API，跳过翻译')
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: { skipped: true, reason: '翻译API未配置' }
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    // 使用 Google 翻译 API（免费）
+    console.log('使用Google翻译API...')
+    const startTime = Date.now()
+    
+    // 翻译标题
+    titleCn = await googleTranslate(title)
+    
+    // 翻译摘要
+    abstractCn = await googleTranslate(abstract)
+    
+    const processingTime = Date.now() - startTime
+    console.log(`Google翻译完成，耗时: ${processingTime}ms`)
     
     // 提取标签（使用简单的关键词匹配，不需要大模型）
     const tags = extractTags(abstractCn + ' ' + titleCn)
@@ -127,8 +109,8 @@ Deno.serve(async (req) => {
         paper_id,
         title_cn: titleCn,
         abstract_cn: abstractCn,
-        translation_model: 'baidu-translate',
-        translation_cost: 0.0001, // 百度翻译成本低
+        translation_model: 'google-translate',
+        translation_cost: 0,
         translation_status: 'completed',
         analyzed_at: new Date().toISOString()
       }, {
@@ -174,21 +156,17 @@ Deno.serve(async (req) => {
   }
 })
 
-// 百度翻译 API
-async function baiduTranslate(text: string, appId: string, secretKey: string): Promise<string> {
-  const salt = Date.now().toString()
-  const sign = await generateBaiduSign(appId, text, salt, secretKey)
-  
+// Google 翻译 API（免费）
+async function googleTranslate(text: string): Promise<string> {
   const params = new URLSearchParams({
-    q: text,
-    from: 'en',
-    to: 'zh',
-    appid: appId,
-    salt: salt,
-    sign: sign
+    client: 'gtx',
+    sl: 'en',
+    tl: 'zh-CN',
+    dt: 't',
+    q: text
   })
   
-  const response = await fetch(`${BAIDU_TRANSLATE_URL}?${params.toString()}`, {
+  const response = await fetch(`${GOOGLE_TRANSLATE_URL}?${params.toString()}`, {
     method: 'GET',
     headers: {
       'Accept': 'application/json'
@@ -196,31 +174,17 @@ async function baiduTranslate(text: string, appId: string, secretKey: string): P
   })
   
   if (!response.ok) {
-    throw new Error(`百度翻译API调用失败: ${response.status}`)
+    throw new Error(`Google翻译API调用失败: ${response.status}`)
   }
   
   const result = await response.json()
   
-  if (result.error_code) {
-    throw new Error(`百度翻译错误: ${result.error_code} - ${result.error_msg}`)
-  }
-  
-  if (!result.trans_result || result.trans_result.length === 0) {
-    throw new Error('百度翻译返回空结果')
+  if (!result || !result[0]) {
+    throw new Error('Google翻译返回空结果')
   }
   
   // 拼接翻译结果
-  return result.trans_result.map((item: any) => item.dst).join('\n')
-}
-
-// 生成百度翻译签名
-async function generateBaiduSign(appId: string, query: string, salt: string, secretKey: string): Promise<string> {
-  const str = appId + query + salt + secretKey
-  const encoder = new TextEncoder()
-  const data = encoder.encode(str)
-  const hashBuffer = await crypto.subtle.digest('MD5', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return result[0].map((item: any) => item[0]).join('')
 }
 
 // 简单标签提取（基于关键词匹配，不需要大模型）
