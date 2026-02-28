@@ -13,8 +13,8 @@ interface TranslationRequest {
   force?: boolean
 }
 
-// Google 翻译 API 配置（免费）
-const GOOGLE_TRANSLATE_URL = 'https://translate.googleapis.com/translate_a/single'
+// MyMemory 翻译 API（免费，无需API密钥）
+const MYMEMORY_TRANSLATE_URL = 'https://api.mymemory.translated.net/get'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -86,16 +86,16 @@ Deno.serve(async (req) => {
     let titleCn = ''
     let abstractCn = ''
     
-    // 使用 Google 翻译 API（免费）
-    console.log('使用Google翻译API...')
+    // 使用 MyMemory 翻译 API（免费）
+    console.log('使用MyMemory翻译API...')
     const startTime = Date.now()
     
     try {
       // 翻译标题
-      titleCn = await googleTranslate(title)
+      titleCn = await mymemoryTranslate(title)
       
       // 翻译摘要
-      abstractCn = await googleTranslate(abstract)
+      abstractCn = await mymemoryTranslate(abstract)
     } catch (translateErr) {
       console.error('翻译失败:', translateErr)
       return new Response(
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
         paper_id,
         title_cn: titleCn,
         abstract_cn: abstractCn,
-        translation_model: 'google-translate',
+        translation_model: 'mymemory-translate',
         translation_cost: 0,
         translation_status: 'completed',
         analyzed_at: new Date().toISOString()
@@ -170,40 +170,39 @@ Deno.serve(async (req) => {
   }
 })
 
-// Google 翻译 API（免费）
-async function googleTranslate(text: string): Promise<string> {
+// MyMemory 翻译 API（免费，无需API密钥）
+async function mymemoryTranslate(text: string): Promise<string> {
   const params = new URLSearchParams({
-    client: 'gtx',
-    sl: 'en',
-    tl: 'zh-CN',
-    dt: 't',
-    q: text
+    q: text,
+    langpair: 'en|zh-CN'
   })
   
   try {
-    const response = await fetch(`${GOOGLE_TRANSLATE_URL}?${params.toString()}`, {
+    const response = await fetch(`${MYMEMORY_TRANSLATE_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; GoogleTranslate/5.0)'
+        'Accept': 'application/json'
       }
     })
     
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`Google翻译API调用失败: ${response.status} - ${errorText}`)
+      throw new Error(`MyMemory翻译API调用失败: ${response.status} - ${errorText}`)
     }
     
     const result = await response.json()
     
-    if (!result || !result[0]) {
-      throw new Error('Google翻译返回空结果')
+    if (result.responseStatus !== 200) {
+      throw new Error(`MyMemory翻译错误: ${result.responseStatus} - ${result.responseDetails}`)
     }
     
-    // 拼接翻译结果
-    return result[0].map((item: any) => item[0]).join('')
+    if (!result.responseData || !result.responseData.translatedText) {
+      throw new Error('MyMemory翻译返回空结果')
+    }
+    
+    return result.responseData.translatedText
   } catch (err) {
-    console.error('Google翻译错误:', err)
+    console.error('MyMemory翻译错误:', err)
     throw err
   }
 }
