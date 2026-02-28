@@ -90,11 +90,25 @@ Deno.serve(async (req) => {
     console.log('使用Google翻译API...')
     const startTime = Date.now()
     
-    // 翻译标题
-    titleCn = await googleTranslate(title)
-    
-    // 翻译摘要
-    abstractCn = await googleTranslate(abstract)
+    try {
+      // 翻译标题
+      titleCn = await googleTranslate(title)
+      
+      // 翻译摘要
+      abstractCn = await googleTranslate(abstract)
+    } catch (translateErr) {
+      console.error('翻译失败:', translateErr)
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'TRANSLATION_FAILED',
+            message: translateErr.message || '翻译服务调用失败'
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
+    }
     
     const processingTime = Date.now() - startTime
     console.log(`Google翻译完成，耗时: ${processingTime}ms`)
@@ -166,25 +180,32 @@ async function googleTranslate(text: string): Promise<string> {
     q: text
   })
   
-  const response = await fetch(`${GOOGLE_TRANSLATE_URL}?${params.toString()}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json'
+  try {
+    const response = await fetch(`${GOOGLE_TRANSLATE_URL}?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; GoogleTranslate/5.0)'
+      }
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Google翻译API调用失败: ${response.status} - ${errorText}`)
     }
-  })
-  
-  if (!response.ok) {
-    throw new Error(`Google翻译API调用失败: ${response.status}`)
+    
+    const result = await response.json()
+    
+    if (!result || !result[0]) {
+      throw new Error('Google翻译返回空结果')
+    }
+    
+    // 拼接翻译结果
+    return result[0].map((item: any) => item[0]).join('')
+  } catch (err) {
+    console.error('Google翻译错误:', err)
+    throw err
   }
-  
-  const result = await response.json()
-  
-  if (!result || !result[0]) {
-    throw new Error('Google翻译返回空结果')
-  }
-  
-  // 拼接翻译结果
-  return result[0].map((item: any) => item[0]).join('')
 }
 
 // 简单标签提取（基于关键词匹配，不需要大模型）
